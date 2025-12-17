@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Teacher Challenges</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-hand { font-family: 'Architects Daughter', cursive; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+        /* Animation Classes */
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="bg-[#f8f9fa] text-gray-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- CONFIGURATION ---
+        // REPLACE THIS URL WITH YOUR LOGO LINK IF HOSTED, OR UPLOAD 'T&L Logo.png'
+        const LOGO_URL = "https://ui-avatars.com/api/?name=T%26L&background=c94084&color=fff&size=128&length=3&font-size=0.4";
+
+        // --- ICONS ---
+        const IconWrapper = ({ children, size = 24, className = "", color = "currentColor" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+
+        const Icons = {
+            Zap: (props) => <IconWrapper {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconWrapper>,
+            Sparkles: (props) => <IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></IconWrapper>,
+            Code: (props) => <IconWrapper {...props}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></IconWrapper>,
+            Brain: (props) => <IconWrapper {...props}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></IconWrapper>,
+            BookOpen: (props) => <IconWrapper {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconWrapper>,
+            ArrowLeft: (props) => <IconWrapper {...props}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></IconWrapper>,
+            ArrowRight: (props) => <IconWrapper {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></IconWrapper>,
+            Copy: (props) => <IconWrapper {...props}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></IconWrapper>,
+            CheckCircle2: (props) => <IconWrapper {...props}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></IconWrapper>,
+            Lightbulb: (props) => <IconWrapper {...props}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.4 1.5-3.8 0-3.3-2.7-6-6-6S6 4.7 6 8c0 1.4.5 2.8 1.5 3.8.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconWrapper>,
+            RefreshCw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>,
+            Layers: (props) => <IconWrapper {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></IconWrapper>,
+            Palette: (props) => <IconWrapper {...props}><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></IconWrapper>,
+            Info: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></IconWrapper>,
+            X: (props) => <IconWrapper {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>,
+            Layout: (props) => <IconWrapper {...props}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></IconWrapper>
+        };
+
+        // --- TOOL GUIDES & FEATURE SUMMARY ---
+        
+        const FEATURE_GLOSSARY = [
+            { title: "Nano Banana Pro", desc: "Gemini 3 Pro Image. State-of-the-art reasoning for detailed infographics and visuals." },
+            { title: "Vibe Coding", desc: "Zero-shot code generation for interactive web UIs from simple natural language prompts." },
+            { title: "Antigravity", desc: "Agentic coding platform that works across editor, terminal, and browser for complex real-world code." },
+            { title: "Presentation Coach", desc: "Multimodal feedback on your delivery, pacing, and tone from video/audio uploads." },
+            { title: "Dynamic View", desc: "Generative UI that creates custom interactive layouts (timelines, dashboards) on the fly." },
+            { title: "Deep Research", desc: "Multi-step reasoning to investigate complex topics and create dense, cited reports." },
+            { title: "AI Mode in Search", desc: "Uses Gemini 3 to create ideal layouts (simulations, tools) directly in search results." },
+            { title: "Gemini Agent", desc: "Handles multi-step tasks (email triage, booking) across Google Workspace apps." },
+            { title: "Visual Layout", desc: "Immersive, magazine-style responses with interactive modules for planning (trips, events)." },
+            { title: "Scale Illustration", desc: "Codes visualisations to help you grasp massive differences in size or quantity." },
+            { title: "Art & Code", desc: "Combines creative understanding with coding to express scientific/complex concepts artistically." },
+            { title: "Interactive Image", desc: "Turns static images into functional, clickable educational resources." },
+            { title: "Skill Coach", desc: "Analyses long-form video (up to 1 hour) to offer technical advice on sports/performance." },
+            { title: "Inbox Zero", desc: "Agentic workflow to sort, draft, and manage communications efficiently." },
+            { title: "Practical Tools", desc: "Generates calculators, trackers, and utilities tailored to your exact needs." }
+        ];
+
+        // Mapped tools to specific Gemini Modes/Extensions
+        const TOOL_LOOKUP = {
+            "Presentation Coach": "Gemini (Fast Mode) + Audio Upload",
+            "Interactive Image": "Gemini (Thinking Mode) + Canvas",
+            "Vibe Coding": "Gemini (Thinking Mode) + Canvas",
+            "Nano Banana Pro": "Gemini - Create Images",
+            "Custom Interface": "Gemini (Thinking Mode) + Canvas",
+            "Visual Layout": "Gemini (Thinking Mode) + Canvas",
+            "Art & Code": "Gemini (Thinking Mode) + Canvas",
+            "Coded Visualization": "Gemini (Thinking Mode) + Canvas",
+            "Gemini Agent": "Gemini Agent + Workspace",
+            "Skill Coach": "Gemini (Thinking Mode) + Video",
+            "Real-world Code": "Gemini (Thinking Mode) + Canvas",
+            "Deep Dive": "Gemini (Thinking Mode)",
+            "Practical Tools": "Gemini (Thinking Mode) + Canvas",
+            "Scale Illustration": "Gemini (Thinking Mode) + Canvas",
+            "Inbox Zero": "Gemini Agent + Gmail",
+            "Scientific Concept": "Gemini (Thinking Mode) + Canvas",
+            "Critical Thinking": "Gemini (Thinking Mode)",
+            "Differentiation": "Gemini (Fast Mode)",
+            "Assessment": "Gemini (Thinking Mode)",
+            "Feedback": "Gemini (Fast Mode)",
+            "Accessibility": "Gemini (Fast Mode)",
+            "Communication": "Gemini (Fast Mode)",
+            "Admin": "Gemini (Fast Mode)",
+            "Planning": "Gemini (Fast Mode)",
+            "Scaffolding": "Gemini (Fast Mode)",
+            "Explanation": "Gemini (Fast Mode)",
+            "Engagement": "Gemini (Fast Mode)",
+            "Visuals": "Gemini - Create Images",
+            "Coding/Tools": "Gemini (Thinking Mode) + Canvas",
+            "Interactive": "Gemini (Thinking Mode) + Canvas",
+            "Resources": "Gemini (Fast Mode)",
+            "Reflection": "Gemini (Thinking Mode)",
+            "Wellbeing": "Gemini (Thinking Mode)",
+            "Strategy": "Gemini (Thinking Mode)",
+            "Curriculum": "Gemini (Thinking Mode)",
+            "Inclusion": "Gemini (Thinking Mode)",
+            "Creativity": "Gemini (Thinking Mode)",
+            "Ethics": "Gemini (Thinking Mode)",
+            "Multimodal": "Gemini (Fast Mode) + Audio/Video",
+            "Data Science": "Gemini (Thinking Mode)",
+            "Coding": "Gemini (Thinking Mode)"
+        };
+
+        // --- CORE DATA ---
+        
+        const LEVELS = {
+            1: { title: "Level 1: Quick Wins", color: "bg-gray-100", icon: Icons.Zap, description: "Instant time-savers and confidence builders." },
+            2: { title: "Level 2: Creative Practice", color: "bg-gray-200", icon: Icons.Sparkles, description: "Sparking new ideas for lessons and feedback." },
+            3: { title: "Level 3: Advanced & Playful", color: "bg-gray-300", icon: Icons.Code, description: "Building tools and interactive resources." },
+            4: { title: "Level 4: Professional Reflection", color: "bg-gray-200", icon: Icons.Brain, description: "Deepening pedagogy and workflow." },
+            5: { title: "Level 5: Stretch for the Curious", color: "bg-gray-100", icon: Icons.BookOpen, description: "Pushing boundaries with multimodal AI." }
+        };
+
+        // --- SUBJECT DATA & TIPS ---
+        
+        const createSubjChallenge = (subject, id, title, prompt, feature, steps, tip) => ({
+            id: `${subject}-${id}`,
+            level: "Subject",
+            subject: subject,
+            title,
+            category: feature,
+            // Fallback to lookup if feature exists, else default to Thinking Mode
+            tool: TOOL_LOOKUP[feature] || "Gemini (Thinking Mode)",
+            prompt,
+            steps,
+            tip
+        });
+
+        const SUBJECT_CHALLENGES = {
+            "Theatre": [
+                createSubjChallenge("Theatre", 1, "The AI Presentation Coach", "Analyse this video of a monologue rehearsal: [UPLOAD VIDEO]. Critique vocal projection, emotional range, and pacing. Offer 3 constructive drills.", "Presentation Coach", ["Open Gemini.", "Upload video.", "Review feedback."], "PROMPT TIP: 'Act as a RADA voice coach. Critique for resonance and breath support. Output format: 1. Diagnosis, 2. Three bullet-point drills.'"),
+                createSubjChallenge("Theatre", 2, "Set Design Interactive", "Turn this sketch of a set design: [UPLOAD IMAGE] into an interactive stage map where clicking an area explains its symbolic purpose.", "Interactive Image", ["Open Gemini.", "Upload sketch.", "Ask for HTML map."], "PROMPT TIP: 'Generate an HTML file using an image map. When I hover over the [Throne], display a tooltip explaining its symbolism in Shakespearean context.'"),
+                createSubjChallenge("Theatre", 3, "Production Aesthetic Site", "Vibe code a website for our production of 'The Crucible' with a dark, puritan aesthetic and a countdown timer.", "Vibe Coding", ["Open Gemini.", "Describe mood.", "Copy code."], "PROMPT TIP: 'Style: Gothic Noir. Palette: Charcoal (#36454F), Black, and Crimson. Font: Serif (e.g., Playfair Display). Include a jagged divider line.'"),
+                createSubjChallenge("Theatre", 4, "Stanislavski Infographic", "Create a detailed infographic explaining Stanislavski's 'Given Circumstances' with visual icons.", "Nano Banana Pro", ["Select Gemini.", "Ask for graphic.", "Print."], "PROMPT TIP: 'Create a vertical 9:16 infographic. Style: Minimalist Vector. Colours: Navy Blue & Cream. Use simple line icons for Time, Place, and Relationship.'"),
+                createSubjChallenge("Theatre", 5, "Commedia Timeline", "Generate a custom interface that lets students scroll through the history of Commedia dell'arte characters.", "Custom Interface", ["Gemini.", "Request 'Dynamic View'.", "Interact."], "PROMPT TIP: 'Create a horizontal scrolling timeline. Each card should feature a character mask illustration and a collapsible 'Status' section.'"),
+                createSubjChallenge("Theatre", 6, "London Theatre Trip", "Plan a 2-day theatre trip to London. Include 3 workshops and a West End show.", "Visual Layout", ["Gemini.", "Ask for itinerary.", "View map."], "PROMPT TIP: 'Present this as a visual itinerary with map pins. Prioritise venues within walking distance of Covent Garden.'"),
+                createSubjChallenge("Theatre", 7, "Method Poetry", "Explain Meisner Technique using a poem that mirrors the repetition exercise structure.", "Art & Code", ["Gemini.", "Request poem.", "Analyse."], "PROMPT TIP: 'Write the poem in AABB rhyme scheme but repeat the last word of every line twice to mimic the repetition exercise.'"),
+                createSubjChallenge("Theatre", 8, "Dramatic Arc Viz", "Visualise the tension levels in 'Hamlet' Act 1 to 5 using a coded line graph.", "Coded Visualization", ["Gemini.", "Paste summary.", "View graph."], "PROMPT TIP: 'Use Python (Matplotlib). X-axis: Acts 1-5. Y-axis: Tension (1-10). Annotate the Climax in red.'"),
+                createSubjChallenge("Theatre", 9, "Sponsorship Agent", "Act as a production manager. Draft personalised sponsorship emails to 5 local businesses.", "Gemini Agent", ["Gemini Agent Mode.", "List businesses.", "Send."], "PROMPT TIP: 'Tone: Professional but community-focused. Highlight 'local youth development' benefits to appeal to their CSR goals.'"),
+                createSubjChallenge("Theatre", 10, "Physical Theatre Coach", "Analyse this video of a physical theatre piece. Identify moments of tension loss.", "Skill Coach", ["Gemini.", "Upload long video.", "Read analysis."], "PROMPT TIP: 'Identify specific timestamps where the 'clockwork' rhythm falters. Suggest a metronome drill to fix it.'")
+            ],
+            "Musical Theatre": [
+                createSubjChallenge("Musical Theatre", 1, "Vocal Pitch Analyst", "Analyse audio of a student singing [SONG]. Visualise pitch accuracy against sheet music.", "Coded Visualization", ["Gemini.", "Upload audio.", "View contour."], "PROMPT TIP: 'Generate a pitch contour graph. Colour-code deviations: Blue for flat, Red for sharp. Overlay the ideal pitch line in Green.'"),
+                createSubjChallenge("Musical Theatre", 2, "Choreography Sync", "Watch this group dance video. Identify which dancer is off-beat and suggest a count drill.", "Skill Coach", ["Gemini.", "Upload video.", "Get drills."], "PROMPT TIP: 'Ignore costume differences. Focus solely on the 'kick-ball-change' section at 0:45. Who is rushing the count?'"),
+                createSubjChallenge("Musical Theatre", 3, "Ticket Sales Portal", "Build a 'Book of Mormon' inspired ticket landing page with a humorous tone.", "Vibe Coding", ["Gemini.", "Describe vibe.", "Get HTML."], "PROMPT TIP: 'Design Style: Playbill Broadway. Font: Sans-serif bold. Colours: White text on Black background. Include a 'Ding Dong!' sound button.'"),
+                createSubjChallenge("Musical Theatre", 4, "Mega-Musical Evolution", "Generate a timeline showing the rise of the Mega Musical from 'Cats' to 'Hamilton'.", "Nano Banana Pro", ["Select Gemini.", "Ask for timeline.", "Save."], "PROMPT TIP: 'Style: Neon Lights on Brick Wall. Layout: winding road. Highlight 'The Phantom of the Opera' with a chandelier icon.'"),
+                createSubjChallenge("Musical Theatre", 5, "Production Budgeter", "Create a custom calculator for a musical budget (Rights, Costumes, Tech).", "Practical Tools", ["Gemini.", "List expenses.", "Test tool."], "PROMPT TIP: 'Create a reactive HTML table. If 'Rights' exceeds £2000, turn the Total Cost cell red and display a warning: 'Budget Exceeded!''"),
+                createSubjChallenge("Musical Theatre", 6, "Costume Mood Board", "Make this costume sketch interactive. Click the hat to see material choices.", "Interactive Image", ["Gemini.", "Upload sketch.", "Add interactions."], "PROMPT TIP: 'When clicking the [Cape], display a pop-up showing a swatch of 'Green Velvet' and a link to a fabric supplier.'"),
+                createSubjChallenge("Musical Theatre", 7, "Vocal Range Visualiser", "Code a visualisation showing frequency overlap between Soprano, Alto, Tenor, Bass.", "Scientific Concept", ["Gemini.", "Ask for viz.", "Explain."], "PROMPT TIP: 'Use a stacked bar chart. X-axis: Frequency (Hz). Label ranges: C4-C6 for Soprano. Show the 'Muddy Zone' where all 4 overlap.'"),
+                createSubjChallenge("Musical Theatre", 8, "Sondheim Guide", "Create an interface breaking down 'Getting Married Today' syllable by syllable.", "Custom Interface", ["Gemini.", "Request interface.", "Practice."], "PROMPT TIP: 'Layout: Karaoke-style scroller. Highlight consonants in bold to emphasise diction. Speed: Presto.'"),
+                createSubjChallenge("Musical Theatre", 9, "Acoustic Simulator", "Simulate sound in Black Box vs Proscenium Arch using physics descriptions.", "Deep Dive", ["Gemini.", "Describe space.", "Listen/Read."], "PROMPT TIP: 'Explain the 'Reverb Tail' difference. Use an analogy involving a tennis ball bouncing in a closet vs a cathedral.'"),
+                createSubjChallenge("Musical Theatre", 10, "Audition Itinerary", "Plan a schedule for a 2-day audition process for 100 students.", "Visual Layout", ["Gemini.", "Input numbers.", "Get schedule."], "PROMPT TIP: 'Format: Grid Schedule. Colour-code: Dance Call (Pink), Vocal (Blue). Include 15-min 'Panel Breaks' every 2 hours.'")
+            ],
+            "Dance": [
+                createSubjChallenge("Dance", 1, "Pirouette Physics", "Explain the physics of a pirouette using a coded simulation (change arm position).", "Scientific Concept", ["Gemini.", "Ask for p5.js.", "Run sim."], "PROMPT TIP: 'Create a p5.js sketch. Variable: 'Radius of Arms'. as Radius decreases, Angular Velocity must increase (Conservation of Momentum).'"),
+                createSubjChallenge("Dance", 2, "Form Correction", "Analyse this ballet video. Highlight posture drops in the lower back.", "Skill Coach", ["Gemini.", "Upload video.", "Get corrections."], "PROMPT TIP: 'Draw a virtual plumb line from ear to ankle. Flag any frame where the pelvis tilts anteriorly more than 15 degrees.'"),
+                createSubjChallenge("Dance", 3, "Stage Blocking Tool", "Turn a stage diagram into a drag-and-drop tool for placing dancers.", "Real-world Code", ["Gemini/Antigravity.", "Upload layout.", "Plan."], "PROMPT TIP: 'Create 5 draggable circles labeled D1-D5. The background must be the stage dimensions. Output: Single HTML file.'"),
+                createSubjChallenge("Dance", 4, "Recital Programme UI", "Vibe code a digital programme for 'Summer Dance' with neon colours.", "Vibe Coding", ["Gemini.", "Describe theme.", "Share."], "PROMPT TIP: 'Style: Cyberpunk Ballet. Colours: Neon Pink (#FF6EC7) and Electric Blue. Font: Modernist Mono. Add a 'glitch' effect to the title.'"),
+                createSubjChallenge("Dance", 5, "Anatomy of a Plié", "Generate a medical infographic showing muscles engaged during a Grand Plié.", "Nano Banana Pro", ["Select Gemini.", "Ask for graphic.", "Save."], "PROMPT TIP: 'Style: Anatomical Illustration (Grey's Anatomy style). Highlight Quadriceps in Red and Glutes in Orange. Label in Latin and English.'"),
+                createSubjChallenge("Dance", 6, "Intro Speech Coach", "Make my curtain speech warmer and less logistical.", "Presentation Coach", ["Gemini.", "Record audio.", "Refine."], "PROMPT TIP: 'Rewrite for an audience of parents. Replace 'turn off phones' with 'let's disconnect to connect'. Tone: Welcoming, not policing.'"),
+                createSubjChallenge("Dance", 7, "Dance History Tour", "Create a map itinerary of Hip Hop origins in NYC.", "Visual Layout", ["Gemini.", "Ask for map.", "Explore."], "PROMPT TIP: 'Mark 1520 Sedgwick Avenue as a Gold Star. Connect locations with a graffiti-style path line.'"),
+                createSubjChallenge("Dance", 8, "Contemporary Timeline", "Build a collapsible timeline of pioneers from Graham to Cunningham.", "Custom Interface", ["Gemini.", "Request Dynamic View.", "Click."], "PROMPT TIP: 'Card style: Minimalist Card. When expanded, show a GIF of their signature technique (e.g., Contraction and Release).'"),
+                createSubjChallenge("Dance", 9, "Corps de Ballet Scale", "Visualise stage space for a solo vs a corps of 24.", "Scale Illustration", ["Gemini.", "Define dim.", "See scale."], "PROMPT TIP: 'Visual Style: Heatmap. Show 'Collision Zones' in red where spacing is less than 1.5 meters.'"),
+                createSubjChallenge("Dance", 10, "Rehearsal Scheduler", "Organise a schedule for 5 groups sharing one studio over 4 hours.", "Gemini Agent", ["Gemini Agent.", "Input constraints.", "Get table."], "PROMPT TIP: 'Constraint: Junior group must finish by 5pm. Output: Colour-coded Excel-style table.'")
+            ],
+            "Film and Media Production": [
+                createSubjChallenge("Film & Media", 1, "Storyboard Interactive", "Make this storyboard clickable. Reveal camera angle and shot type on click.", "Interactive Image", ["Gemini.", "Upload board.", "Add modal."], "PROMPT TIP: 'When clicking Frame 1, show a modal: 'Shot: Low Angle / MCU. Motivation: Shows power dominance.''"),
+                createSubjChallenge("Film & Media", 2, "Golden Ratio Overlay", "Write a Python script to overlay the 'Golden Ratio' spiral on film frames.", "Real-world Code", ["Gemini/Antigravity.", "Get script.", "Run."], "PROMPT TIP: 'Use OpenCV library. The overlay should be a semi-transparent (alpha=0.5) cyan line. Input: Batch of JPGs.'"),
+                createSubjChallenge("Film & Media", 3, "Student Portfolio Site", "Vibe code a sleek, dark-mode video portfolio template.", "Vibe Coding", ["Gemini.", "Describe style.", "Get template."], "PROMPT TIP: 'Style: Netflix Carousel. Background: #000000. Text: Helvetica Neue. Hover effect: Scale card 1.1x and play trailer.'"),
+                createSubjChallenge("Film & Media", 4, "Hero's Journey Infographic", "Generate a circular infographic comparing 3-Act Structure to Hero's Journey.", "Nano Banana Pro", ["Select Gemini.", "Ask for graphic.", "Save."], "PROMPT TIP: 'Layout: Concentric Circles. Inner circle: Acts 1-3. Outer circle: The 12 steps of Campbell. Colour palette: Earth tones.'"),
+                createSubjChallenge("Film & Media", 5, "Pitch Deck Coach", "Critique this documentary pitch video for persuasion and eye contact.", "Presentation Coach", ["Gemini.", "Upload pitch.", "Review."], "PROMPT TIP: 'Analyse the first 10 seconds. Did they state the 'Logline' clearly? If not, rewrite the opening sentence to be punchier.'"),
+                createSubjChallenge("Film & Media", 6, "Lens Simulator", "Create a slider tool simulating 24mm vs 85mm lens difference.", "Scientific Concept", ["Gemini.", "Ask for simulator.", "Teach."], "PROMPT TIP: 'Create an interactive comparison. Slider Left = 24mm (distorted face). Slider Right = 85mm (compressed features). Use a sample portrait image.'"),
+                createSubjChallenge("Film & Media", 7, "Call Sheet Generator", "Build a web form generating a PDF call sheet from inputs.", "Practical Tools", ["Gemini.", "Describe fields.", "Get tool."], "PROMPT TIP: 'Include fields for: Nearest Hospital, Sunrise/Sunset times, and Dietary Requirements. Output format: Standard A4 PDF layout.'"),
+                createSubjChallenge("Film & Media", 8, "Noir Mood Filter", "Code a filter converting images to high-contrast Film Noir style.", "Art & Code", ["Gemini.", "Ask for filter code.", "Apply."], "PROMPT TIP: 'Increase contrast by +40%. Crush the blacks (set black point to 20). Apply a subtle film grain noise layer.'"),
+                createSubjChallenge("Film & Media", 9, "Lighting Setup Sim", "Simulate Three-Point Lighting on a 3D sphere. Toggle Key, Fill, Back.", "Deep Dive", ["Gemini.", "Ask for sim.", "Explain."], "PROMPT TIP: 'Use Three.js. Key Light: Warm (3200K). Back Light: Cool (5600K). Allow user to rotate the sphere.'"),
+                createSubjChallenge("Film & Media", 10, "Casting Agent", "Triage 50 casting emails. Sort by 'Potential' based on headshots.", "Inbox Zero", ["Gemini Agent.", "Set criteria.", "Review."], "PROMPT TIP: 'Criteria: Look for 'Expressive Eyes' and 'Professional Lighting'. Filter out selfies. Folder structure: Yes / No / Maybe.'")
+            ],
+            "Music": [
+                createSubjChallenge("Music", 1, "Waveform Visualiser", "Code a real-time visualiser showing Sine vs Sawtooth waves.", "Scientific Concept", ["Gemini.", "Ask for Web Audio code.", "Run."], "PROMPT TIP: 'Use Web Audio API. Draw the Sine wave in smooth Blue lines and the Sawtooth in jagged Red lines to visually represent the harshness.'"),
+                createSubjChallenge("Music", 2, "Generative Score", "Create visual art generated by the MIDI notes of Moonlight Sonata.", "Art & Code", ["Gemini.", "Upload MIDI.", "See art."], "PROMPT TIP: 'Mapping: Pitch = Y-axis position. Velocity = Circle Size. Duration = Colour Saturation. Background: Starry Night style.'"),
+                createSubjChallenge("Music", 3, "Piano Posture Coach", "Analyse top-down piano video. Flag wrist drops.", "Skill Coach", ["Gemini.", "Upload video.", "Correct."], "PROMPT TIP: 'Detect 'wrist collapse'. If the wrist joint falls below the keybed plane, draw a red box around the hand.'"),
+                createSubjChallenge("Music", 4, "Composer Fan Page", "Vibe code a fan site for Stravinsky reflecting 'The Rite of Spring'.", "Vibe Coding", ["Gemini.", "Describe vibe.", "Get HTML."], "PROMPT TIP: 'Style: Primitivism / Chaos. Colours: Earthy Browns and Blood Red. Layout: Asymmetrical grid. Animation: Elements shake slightly on hover.'"),
+                createSubjChallenge("Music", 5, "Circle of Fifths Info", "Generate a clean infographic of the Circle of Fifths.", "Nano Banana Pro", ["Select Gemini.", "Ask for chart.", "Print."], "PROMPT TIP: 'Style: Bauhaus Geometric. Colours: Rainbow spectrum corresponding to key brightness. Sharp keys on right, Flat keys on left.'"),
+                createSubjChallenge("Music", 6, "Orchestra Seating", "Create an interactive map of an orchestra. Hover to play instrument samples.", "Custom Interface", ["Gemini.", "Request map.", "Listen."], "PROMPT TIP: 'Layout: Semicircle stage plan. Icons: Simple instrument outlines. Sample duration: 3 seconds.'"),
+                createSubjChallenge("Music", 7, "Playable Sheet Music", "Make an image of a sheet music bar interactive. Click notes to play pitch.", "Interactive Image", ["Gemini.", "Upload score.", "Click."], "PROMPT TIP: 'Use SVG overlay. Map each note head to a specific Hz frequency (e.g., A4 = 440Hz). Waveform: Piano Sample.'"),
+                createSubjChallenge("Music", 8, "Band Tour Planner", "Plan a UK tour route for 5 cities with driving times and gas costs.", "Visual Layout", ["Gemini.", "List cities.", "Discuss."], "PROMPT TIP: 'Route: Circular loop starting London. Vehicle: Ford Transit (25mpg). Fuel Price: £1.50/L. Display total miles and cost in a dashboard card.'"),
+                createSubjChallenge("Music", 9, "Practice Tracker", "Build a local-storage web app to track daily practice minutes.", "Practical Tools", ["Gemini.", "Ask for tool.", "Track."], "PROMPT TIP: 'Feature: 'Streak Counter' (like Duolingo). If streak > 7 days, show a confetti animation. Graph: Bar chart of last 30 days.'"),
+                createSubjChallenge("Music", 10, "Harmonics Deep Dive", "Explain Harmonic Series physics using a coded string simulation.", "Deep Dive", ["Gemini.", "Ask for nodes.", "Explain."], "PROMPT TIP: 'Visual: Vibrating string. Allow user to 'touch' the string at 1/2, 1/3, 1/4 length to enforce nodes and mute the fundamental.'")
+            ],
+            "Music Technology": [
+                createSubjChallenge("Music Tech", 1, "Compression Visualiser", "Code a visualiser showing waveform before/after compression.", "Scientific Concept", ["Gemini.", "Ask for graph.", "Explain."], "PROMPT TIP: 'Display two waveforms overlaid. Original: Grey. Compressed: Orange. Highlight the 'Gain Reduction' area in Red.'"),
+                createSubjChallenge("Music Tech", 2, "Signal Flow Sim", "Create an interactive studio diagram. Trace path from Mic to DAW.", "Custom Interface", ["Gemini.", "Prompt for tool.", "Trace."], "PROMPT TIP: 'Gamify it. If the user connects Mic Output to Mic Input (Feedback Loop), play a loud screech sound and show a 'Warning' modal.'"),
+                createSubjChallenge("Music Tech", 3, "VST GUI Mockup", "Vibe code a UI for a retro synth plugin with wood panels.", "Vibe Coding", ["Gemini.", "Describe UI.", "Get code."], "PROMPT TIP: 'Style: Skeuomorphic 1970s. Texture: Walnut Wood grain. Knobs: Bakelite with silver tops. Shadows: Deep drop shadows for 3D effect.'"),
+                createSubjChallenge("Music Tech", 4, "Mixing Desk Map", "Turn a desk photo into an interactive guide. Hover knob to explain function.", "Interactive Image", ["Gemini.", "Upload photo.", "Annotate."], "PROMPT TIP: 'Focus on the EQ section. Hover text: 'Parametric Mid - Controls the centre frequency of the midrange cut/boost'.'"),
+                createSubjChallenge("Music Tech", 5, "Delay Calculator", "Build a calculator converting BPM to Milliseconds.", "Practical Tools", ["Gemini.", "Use formula.", "Use in mix."], "PROMPT TIP: 'Input: BPM (number). Outputs: 1/4 note (ms), 1/8 note (ms), 1/16 note (ms), and Dotted values. Style: Dark Mode Calculator.'"),
+                createSubjChallenge("Music Tech", 6, "Recording Formats", "Infographic timeline: Wax Cylinder -> Tape -> MP3 -> FLAC.", "Nano Banana Pro", ["Select Gemini.", "Ask for timeline.", "Save."], "PROMPT TIP: 'Style: Tech Blueprint. Icons: Phonograph, Cassette, CD, Cloud. Connect with a circuit-board line pattern.'"),
+                createSubjChallenge("Music Tech", 7, "Polar Pattern Guide", "Create a tool showing mic polar patterns and rejection zones.", "Deep Dive", ["Gemini.", "Visualise zones.", "Explain."], "PROMPT TIP: 'Visual: 360-degree radar plot. Cardioid: Heart shape. Omni: Circle. Figure-8: Infinity symbol. Colour the 'Dead Zone' (null point) in Grey.'"),
+                createSubjChallenge("Music Tech", 8, "Dynamic Range Scale", "Visualise range difference: Whisper (30dB) vs Jet (140dB).", "Scale Illustration", ["Gemini.", "Ask for scale.", "Visualise."], "PROMPT TIP: 'Vertical Bar Chart. Whisper = 1 pixel height. Jet Engine = 10,000 pixels height (scrollable). Label 'Threshold of Pain' clearly.'"),
+                createSubjChallenge("Music Tech", 9, "MIDI Processor Script", "Python script to batch quantise MIDI files to 1/16th grid.", "Real-world Code", ["Gemini/Antigravity.", "Get script.", "Run."], "PROMPT TIP: 'Library: Mido. Logic: For every NoteOn event, round the 'time' attribute to the nearest multiple of 120 ticks (assuming 480 PPQ).'"),
+                createSubjChallenge("Music Tech", 10, "Safety Check Coach", "Analyse setup video. Identify trip hazards/cable coiling.", "Skill Coach", ["Gemini.", "Upload setup.", "Correct."], "PROMPT TIP: 'Look for 'Over-Under' cable wrapping technique. If student wraps around elbow, flag as 'Cable Damage Risk'.'"),
+            ],
+            "Digital Arts": [
+                createSubjChallenge("Digital Arts", 1, "Portfolio Generator", "Build a static site generator script for image galleries.", "Real-world Code", ["Gemini/Antigravity.", "Ask for script.", "Run."], "PROMPT TIP: 'Input: Folder path. Output: index.html with a masonry grid layout using CSS columns. Add Lightbox functionality for clicking images.'"),
+                createSubjChallenge("Digital Arts", 2, "Fractal Code", "Write p5.js code to generate a Julia Set fractal.", "Art & Code", ["Gemini.", "Get code.", "Explore."], "PROMPT TIP: 'Colour palette: HSB mode (Rainbow). Interaction: Map MouseX and MouseY to the real and imaginary components of the constant c.'"),
+                createSubjChallenge("Digital Arts", 3, "UI Prototype", "Turn a pencil sketch of an app interface into a clickable prototype.", "Interactive Image", ["Gemini.", "Upload sketch.", "Test."], "PROMPT TIP: 'Recognise hand-drawn rectangles as buttons. Make them clickable `<div>` elements with a :hover state of 'cursor: pointer'.'"),
+                createSubjChallenge("Digital Arts", 4, "Colour Theory Info", "Generate infographic: Additive (RGB) vs Subtractive (CMYK).", "Nano Banana Pro", ["Select Gemini.", "Ask for model.", "Reference."], "PROMPT TIP: 'Visual: Venn Diagrams. RGB centre = White. CMYK centre = Black (Key). Style: Clean Vector. Background: 50% Grey.'"),
+                createSubjChallenge("Digital Arts", 5, "Raster vs Vector", "Visualise zooming into Raster (pixels) vs Vector (smooth).", "Scientific Concept", ["Gemini.", "Create demo.", "Explain."], "PROMPT TIP: 'Side-by-side canvas. Left: JPG (pixelates on scroll). Right: SVG (remains crisp). Label: 'Resolution Dependent' vs 'Resolution Independent'.'"),
+                createSubjChallenge("Digital Arts", 6, "Pixel Art Timeline", "Interactive timeline: 8-bit to Modern Indie.", "Custom Interface", ["Gemini.", "Request timeline.", "Explore."], "PROMPT TIP: 'Background: Parallax scrolling starfield. Fonts: Press Start 2P. Images must be rendered with nearest-neighbour interpolation (crisp edges).'"),
+                createSubjChallenge("Digital Arts", 7, "Batch Processor", "Script to watermark 100 student images.", "Practical Tools", ["Gemini.", "Automate.", "Teach."], "PROMPT TIP: 'Use Python Pillow library. Position: Bottom Right. Opacity: 30%. Text: Filename + Date.'"),
+                createSubjChallenge("Digital Arts", 8, "Blend Mode Sim", "Web tool simulating Photoshop blend modes (Multiply, Screen).", "Deep Dive", ["Gemini.", "Code math.", "Understand."], "PROMPT TIP: 'Create two overlapping coloured divs. Dropdown menu changes the CSS `mix-blend-mode` property. Explain the math: Multiply = A * B.'"),
+                createSubjChallenge("Digital Arts", 9, "Exhibition Layout", "Plan virtual 3D layout for digital art exhibition.", "Visual Layout", ["Gemini.", "Define room.", "Visualise."], "PROMPT TIP: 'View: Isometric Top-Down. Place 5 projectors with 'Throw Distance' cones shown in semi-transparent light beams.'"),
+                createSubjChallenge("Digital Arts", 10, "Speed Paint Analyst", "Analyse speed-paint video. Identify workflow stages.", "Skill Coach", ["Gemini.", "Upload timelapse.", "Optimise."], "PROMPT TIP: 'Breakdown: 0-20% Sketch, 20-50% Flat Colours, 50-80% Shading, 80-100% Highlights/FX. Output a pie chart of time distribution.'")
+            ],
+            "Applied Theatre": [
+                createSubjChallenge("Applied Theatre", 1, "Forum Theatre Guide", "Interactive decision-tree tool for Forum Theatre. 'Stop' action to choose path.", "Custom Interface", ["Gemini.", "Define conflict.", "Practice."], "PROMPT TIP: 'Style: Choose Your Own Adventure. UI: Large, accessible buttons. Text: Dyslexia-friendly font (OpenDyslexic). Scenario: Workplace bullying.'"),
+                createSubjChallenge("Applied Theatre", 2, "Workshop Layout", "Generate floor plan for community workshop in circular hall.", "Visual Layout", ["Gemini.", "Input specs.", "Plan."], "PROMPT TIP: 'Shape: Circle. Seating: Horse-shoe configuration to encourage inclusion. Mark 'Wheelchair Access' zones clearly near the entrance.'"),
+                createSubjChallenge("Applied Theatre", 3, "Outreach Agent", "Draft emails to 5 community centres proposing youth project.", "Gemini Agent", ["Gemini Agent.", "Define project.", "Send."], "PROMPT TIP: 'Persona: Friendly Community Liaison. Tone: Collaborative, not transactional. Subject Line: 'Partnership Opportunity for [Town] Youth'.'"),
+                createSubjChallenge("Applied Theatre", 4, "TIE Company Site", "Vibe code a friendly site for a Theatre in Education company.", "Vibe Coding", ["Gemini.", "Describe vibe.", "Get HTML."], "PROMPT TIP: 'Style: Playful & Trustworthy. Colours: Primary Yellow and Blue. Shapes: Soft rounded corners. Feature a 'Book a Workshop' CTA prominently.'"),
+                createSubjChallenge("Applied Theatre", 5, "Facilitator Coach", "Analyse student facilitation audio. Suggest open-ended questions.", "Presentation Coach", ["Gemini.", "Upload audio.", "Improve."], "PROMPT TIP: 'Flag Closed Questions (Yes/No). Suggest rewrites starting with 'How', 'Why', or 'What makes you say that?'.'"),
+                createSubjChallenge("Applied Theatre", 6, "Impact Infographic", "Generate infographic: Arts participation vs Mental Health stats.", "Nano Banana Pro", ["Select Gemini.", "Feed data.", "Save."], "PROMPT TIP: 'Style: Corporate Social Responsibility Report. Icons: Brain, Heart, Group. Highlight key stat '+40% Wellbeing' in large bold font.'"),
+                createSubjChallenge("Applied Theatre", 7, "Stakeholder Map", "Interactive map of town showing schools, councils, charities.", "Interactive Image", ["Gemini.", "Upload map.", "Plan."], "PROMPT TIP: 'Pin colours: Red=Funding, Blue=Venue, Green=Participant Source. Draw connection lines between potential partners.'"),
+                createSubjChallenge("Applied Theatre", 8, "Touring Budget", "Budget tool for low-budget van tour (fuel, per diems).", "Practical Tools", ["Gemini.", "List expenses.", "Manage."], "PROMPT TIP: 'Include a 'Contingency' row calculated at 10% of total. Auto-calculate 'Cost Per Mile' based on fuel inputs.'"),
+                createSubjChallenge("Applied Theatre", 9, "Conflict Sim", "Simulate conflict resolution scenario. Student types input to de-escalate.", "Deep Dive", ["Gemini.", "Set scenario.", "Test."], "PROMPT TIP: 'AI Character: Angry Tenant. Goal: Get them to agree to a meeting. If user uses aggressive language, escalate the anger level.'"),
+                createSubjChallenge("Applied Theatre", 10, "Reach Visualiser", "Visualise geographic reach of tour vs national campaign.", "Scale Illustration", ["Gemini.", "Define areas.", "Discuss."], "PROMPT TIP: 'Map Overlay: Draw a 50-mile radius circle around each venue. Calculate total population coverage within the circles.'")
+            ],
+            "Visual Arts and Design": [
+                createSubjChallenge("Visual Arts", 1, "Mondrian Generator", "Code random compositions in Piet Mondrian style using CSS Grid.", "Art & Code", ["Gemini.", "Get CSS.", "Analyse."], "PROMPT TIP: 'Use CSS Grid. Colours: #FF0000, #FFFF00, #0000FF, #FFFFFF, #000000. Borders: 10px solid black. Randomise grid-row-span and grid-column-span.'"),
+                createSubjChallenge("Visual Arts", 2, "Virtual Gallery", "Turn blank wall photo into interactive gallery for student work.", "Interactive Image", ["Gemini.", "Upload photo.", "Create."], "PROMPT TIP: 'Perspectively warp the student images to match the wall angle. Add soft drop shadows to simulate depth.'"),
+                createSubjChallenge("Visual Arts", 3, "Elements of Art", "Infographic breaking down 7 Elements of Art (Line, Shape, Form...).", "Nano Banana Pro", ["Select Gemini.", "Ask for sheet.", "Print."], "PROMPT TIP: 'Format: Grid of 7 Cards. Each card illustrates the concept (e.g., 'Texture' card has a rough visual pattern). Minimal text.'"),
+                createSubjChallenge("Visual Arts", 4, "Perspective Viz", "Code 3D visualisation of One-Point Perspective lines.", "Scientific Concept", ["Gemini.", "Ask for model.", "Teach."], "PROMPT TIP: 'Interactive Canvas. Mouse position = Vanishing Point. All orthogonal lines must converge to the mouse cursor in real-time.'"),
+                createSubjChallenge("Visual Arts", 5, "Sculpture Critique", "Analyse pottery throwing video. Identify hand position errors.", "Skill Coach", ["Gemini.", "Upload video.", "Correct."], "PROMPT TIP: 'Focus on 'Centring'. If the clay wobbles at 0:15, identify if the left elbow was not anchored to the hip.'"),
+                createSubjChallenge("Visual Arts", 6, "Movements Map", "Interactive map of Europe showing Art Movement birthplaces.", "Custom Interface", ["Gemini.", "Prompt for map.", "See history."], "PROMPT TIP: 'Map Style: Parchment/Antique. Pins: Paintbrush Icons. Popups: Include a thumbnail of a famous work (e.g., Monet's Sunrise for Paris).'"),
+                createSubjChallenge("Visual Arts", 7, "Exhibition Site", "Vibe code minimalist, brutalist landing page for sculpture show.", "Vibe Coding", ["Gemini.", "Describe vibe.", "Upload."], "PROMPT TIP: 'Style: Brutalist Web Design. Font: Courier New. Background: Concrete Texture. Layout: Overlapping asymmetrical images.'"),
+                createSubjChallenge("Visual Arts", 8, "Scale Comparison", "Visualise Michelangelo's David vs average human.", "Scale Illustration", ["Gemini.", "Ask for comp.", "Discuss."], "PROMPT TIP: 'Silhouette comparison. Human: 1.7m (Green). David: 5.17m (Marble White). Show the view angle from the ground looking up.'"),
+                createSubjChallenge("Visual Arts", 9, "Mood Board Layout", "Generate 'masonry' layout tool organising images by colour.", "Visual Layout", ["Gemini.", "Ask for code.", "See patterns."], "PROMPT TIP: 'Use JavaScript library 'Masonry.js'. Auto-sort logic: Extract dominant colour from image, group warm tones (Red/Orange) vs cool tones.'"),
+                createSubjChallenge("Visual Arts", 10, "Pigment Chemistry", "Deep dive into Cadmium Red vs Alizarin Crimson chemistry/toxicity.", "Deep Dive", ["Gemini.", "Ask chemistry.", "Discuss."], "PROMPT TIP: 'Output: Comparative Table. Columns: Chemical Formula, Lightfastness Rating (ASTM), Toxicity (LD50), Opacity.'")
+            ],
+            "Production Arts": [
+                createSubjChallenge("Production Arts", 1, "Colour Mixing Sim", "Simulate Additive (Light) colour mixing. Red + Green = Yellow.", "Scientific Concept", ["Gemini.", "Code physics.", "Teach."], "PROMPT TIP: 'Three overlapping circles (RGB) with `mix-blend-mode: screen`. Background: Black. Drag circles to see the secondary colours (CMY) form.'"),
+                createSubjChallenge("Production Arts", 2, "Interactive Plot", "Turn PDF lighting plot into tool. Click fixture for Gel/DMX info.", "Interactive Image", ["Gemini.", "Upload plot.", "Rig."], "PROMPT TIP: 'Convert vector symbols to clickable SVG elements. Tooltip data: Channel: [1], Dimmer: [24], Colour: [L106].'"),
+                createSubjChallenge("Production Arts", 3, "Power Calculator", "Calculator summing wattage and warning of 13A overload.", "Practical Tools", ["Gemini.", "Input Watts.", "Warn."], "PROMPT TIP: 'Formula: Amps = Watts / Volts (240V). If Total Amps > 13, display flashing red warning: 'BREAKER TRIP RISK'. '"),
+                createSubjChallenge("Production Arts", 4, "Knot Guide", "Interactive guide to tying a Bowline knot.", "Custom Interface", ["Gemini.", "Prompt for steps.", "Practice."], "PROMPT TIP: 'Format: Step-by-step Carousel. Illustration style: High-contrast vector (White rope on Blue background). Arrow overlays showing motion direction.'"),
+                createSubjChallenge("Production Arts", 5, "Safety Signage", "Generate ISO standard Safety signs (Goggles, Boots).", "Nano Banana Pro", ["Select Gemini.", "List hazards.", "Print."], "PROMPT TIP: 'Style: ISO 7010. Mandatory signs: Blue Circle with White Icon. Warning signs: Yellow Triangle with Black Border. High resolution PDF.'"),
+                createSubjChallenge("Production Arts", 6, "Inventory System", "Vibe code inventory dashboard for timber/screws.", "Vibe Coding", ["Gemini.", "Describe UI.", "Manage."], "PROMPT TIP: 'Style: Industrial Dashboard. Colours: Safety Yellow and Dark Grey. Feature: 'Low Stock' alert if count < 10.'"),
+                createSubjChallenge("Production Arts", 7, "DMX Flow", "Visualise data packet flow: Desk -> Dimmer -> Fixture.", "Coded Visualization", ["Gemini.", "Show path.", "Troubleshoot."], "PROMPT TIP: 'Animation: Small data packets traveling along a cable. Show what happens if the 'Terminator' is missing (signal reflection/ghosting).'"),
+                createSubjChallenge("Production Arts", 8, "Set Change Coach", "Analyse scene change video. Identify inefficiencies.", "Skill Coach", ["Gemini.", "Upload video.", "Reduce time."], "PROMPT TIP: 'Track the movement path of the Stage Right crew. Identify 'dead walking' (moving without carrying). Suggest a closer prop table location.'"),
+                createSubjChallenge("Production Arts", 9, "Production Timeline", "Generate Gantt chart for 6-week build.", "Visual Layout", ["Gemini.", "Input deadlines.", "Track."], "PROMPT TIP: 'Use 'Mermaid.js' syntax for the Gantt chart. Critical Path: Carpentry -> Prime -> Paint -> Seal. Highlight 'Fit-up Week' in red.'"),
+                createSubjChallenge("Production Arts", 10, "Cue List Script", "Script formatting text cues into DSM prompt copy.", "Real-world Code", ["Gemini/Antigravity.", "Input text.", "Format."], "PROMPT TIP: 'Layout: Two Column. Left: Script Text. Right: Cue Column. Cues must be aligned exactly with the trigger word. Font: Monospace.'")
+            ],
+            "English": [
+                createSubjChallenge("English", 1, "Pentameter Bot", "Code checker for Iambic Pentameter rhythm.", "Art & Code", ["Gemini.", "Get checker.", "Test lines."], "PROMPT TIP: 'Logic: Count syllables (aim for 10). Analyse stress pattern (da-DUM da-DUM). Highlight syllables that break the meter in red.'"),
+                createSubjChallenge("English", 2, "Character Map", "Generate relationship map for 'Of Mice and Men' by power dynamics.", "Nano Banana Pro", ["Select Gemini.", "Ask for map.", "Revise."], "PROMPT TIP: 'Visual: Node Network. Node size = Social Power. Curley's Wife connected to everyone but isolated by dashed lines. Style: 1930s Dust Bowl grit.'"),
+                createSubjChallenge("English", 3, "Victorian Context", "Interactive timeline of Victorian Era linked to 'A Christmas Carol'.", "Custom Interface", ["Gemini.", "Prompt timeline.", "Contextualise."], "PROMPT TIP: 'Events: 1834 Poor Law, 1843 Novella Published. Overlay Dickens' life events. Background: Foggy London Illustration.'"),
+                createSubjChallenge("English", 4, "Interactive Blurb", "Turn book cover into interactive analysis. Click keywords for connotation.", "Interactive Image", ["Gemini.", "Upload cover.", "Analyse."], "PROMPT TIP: 'Word: 'Blood'. Connotation: Violence, Lineage, Guilt. Target Audience: Thriller readers. Colour psychology: Red = Danger.'"),
+                createSubjChallenge("English", 5, "Speech Coach", "Critique persuasive speech for rhetorical pauses/emphasis.", "Presentation Coach", ["Gemini.", "Upload speech.", "Refine."], "PROMPT TIP: 'Identify the 'Rule of Three'. Did the student pause after each item? If not, suggest a '/' notation in their script to mark the beat.'"),
+                createSubjChallenge("English", 6, "Syntax Tree", "Visualise syntax tree of complex sentence.", "Coded Visualization", ["Gemini.", "Input sentence.", "Teach."], "PROMPT TIP: 'Library: NLTK (Natural Language Toolkit). Output: Tree Diagram. Root: S (Sentence). Branches: NP (Noun Phrase), VP (Verb Phrase).'"),
+                createSubjChallenge("English", 7, "Writing Portfolio", "Vibe code minimalist blog for creative writing.", "Vibe Coding", ["Gemini.", "Describe aesthetic.", "Publish."], "PROMPT TIP: 'Style: Medium.com minimalist. Font: Serif (Georgia). Whitespace: High. Feature: 'Estimated Reading Time' at the top of each post.'"),
+                createSubjChallenge("English", 8, "Etymology Dive", "Deep dive etymology of 'Villain' (farmhand to bad guy).", "Deep Dive", ["Gemini.", "Ask history.", "Discuss."], "PROMPT TIP: 'Timeline format. 1. Latin 'Villanus' (Farm hand). 2. Medieval Association with low-born/uncouth. 3. Modern 'Criminal'. Analysis: How language demonises the poor.'"),
+                createSubjChallenge("English", 9, "Word Count Scale", "Visualise word count: 'Harry Potter' vs 'War and Peace'.", "Scale Illustration", ["Gemini.", "Compare counts.", "Discuss."], "PROMPT TIP: 'Visual: Physical Book Stacks. 1 tweet = 1 sheet of paper. Harry Potter = 1 meter stack. War and Peace = 2 meter stack.'"),
+                createSubjChallenge("English", 10, "Draft Feedback", "Act as Learning Facilitator. Triage 20 student drafts by need.", "Inbox Zero", ["Gemini Agent.", "Paste drafts.", "Plan."], "PROMPT TIP: 'Categories: 1. SPaG Critical. 2. Content Weak. 3. Extension Ready. Output: Excel table with Student Name and Suggested Intervention.'")
+            ],
+            "Maths": [
+                createSubjChallenge("Maths", 1, "Calculus Viz", "Code graph visualising tangent slope approximating derivative.", "Coded Visualization", ["Gemini.", "Ask for graph.", "Explain."], "PROMPT TIP: 'Interactive Desmos-style graph. Curve: y=x^2. Secant line becomes Tangent line as 'h' slider approaches 0.'"),
+                createSubjChallenge("Maths", 2, "Million vs Billion", "Visualise 1 million vs 1 billion dots.", "Scale Illustration", ["Gemini.", "Code dots.", "Grasp scale."], "PROMPT TIP: 'Scrollable canvas. 1 pixel = 1 unit. Million = 1000x1000 square. Billion = 1000 of those squares. Load dynamically to avoid crashing browser.'"),
+                createSubjChallenge("Maths", 3, "Quadratic Solver", "Python script solving Quadratic Formula with working.", "Real-world Code", ["Gemini/Antigravity.", "Get solver.", "Show steps."], "PROMPT TIP: 'Output: Step-by-step LaTeX rendering. 1. Substitute values. 2. Calculate Discriminant. 3. Evaluate roots. Print 'No Real Roots' if discriminant < 0.'"),
+                createSubjChallenge("Maths", 4, "Graph Explorer", "Interactive tool: y=mx+c sliders.", "Custom Interface", ["Gemini.", "Prompt tool.", "Understand."], "PROMPT TIP: 'Slider m: -5 to 5. Slider c: -10 to 10. Update graph instantly. Highlight y-intercept and x-intercept points.'"),
+                createSubjChallenge("Maths", 5, "History of Zero", "Infographic timeline of Zero across civilisations.", "Nano Banana Pro", ["Select Gemini.", "Ask history.", "Context."], "PROMPT TIP: 'Locations: Babylon (placeholder), India (Brahmagupta - number), Maya (shell symbol). Style: Ancient Papyrus scroll.'"),
+                createSubjChallenge("Maths", 6, "Real World Angles", "Geometry lesson on bridge photo. Click to measure.", "Interactive Image", ["Gemini.", "Upload bridge.", "Applied."], "PROMPT TIP: 'Overlay tool: Protractor. Allow user to click three points (Vertex, Point A, Point B) to calculate and display the angle in degrees.'"),
+                createSubjChallenge("Maths", 7, "Riemann Hypothesis", "Explain Riemann Hypothesis with visual analogies.", "Deep Dive", ["Gemini.", "Simplify.", "Inspire."], "PROMPT TIP: 'Analogy: Music. The Prime Numbers are like the 'fundamental frequencies' of the universe. The Zeros represent the 'harmonics'. Keep it to GCSE level.'"),
+                createSubjChallenge("Maths", 8, "Interest Calculator", "Compound interest calculator: 'Save Early' vs 'Save Late'.", "Practical Tools", ["Gemini.", "Input data.", "Teach."], "PROMPT TIP: 'Two columns. Person A: Invests 20-30. Person B: Invests 30-60. Graph the exponential growth crossing point. Show total interest earned.'"),
+                createSubjChallenge("Maths", 9, "Fractal Art", "Generate Mandelbrot set code. Zoom for self-similarity.", "Art & Code", ["Gemini.", "Run script.", "Discuss infinity."], "PROMPT TIP: 'Use Shader (GLSL) for performance. Colour map: Psychedelic. Enable mouse wheel zoom up to 1000x.'"),
+                createSubjChallenge("Maths", 10, "Trig Revision Site", "Vibe code Trig revision page (SOH CAH TOA).", "Vibe Coding", ["Gemini.", "Describe layout.", "Share."], "PROMPT TIP: 'Layout: Three vertical columns (Red, Green, Blue). Large Mnemonic text. Embedded calculator widget for checking Sin/Cos/Tan.'")
+            ],
+             "Science": [
+                createSubjChallenge("Science", 1, "Protein Synthesis", "Simulate transcription/translation. Match base pairs.", "Scientific Concept", ["Gemini.", "Ask for sim.", "Build."], "PROMPT TIP: 'Game mechanic: Drag and drop RNA bases (U, A, G, C) to match the DNA template. If correct, amino acid chain grows. Style: 3D molecular model.'"),
+                createSubjChallenge("Science", 2, "Orbit Viz", "Code Solar System orbit sim. Show Kepler's laws.", "Coded Visualization", ["Gemini.", "Run sim.", "Discuss."], "PROMPT TIP: 'Top-down view. Planets: Scale size not to scale, but Orbital Period must be accurate relative to Earth (1 year). Trail lines to show path.'"),
+                createSubjChallenge("Science", 3, "Periodic Table UI", "Interactive Periodic Table. Click for electron config.", "Interactive Image", ["Gemini.", "Upload table.", "Reference."], "PROMPT TIP: 'Grid layout. Colour code by group (Alkali Metals, Halogens, Noble Gases). Popup: Bohr model diagram of electron shells.'"),
+                createSubjChallenge("Science", 4, "Nitrogen Cycle", "Infographic of Nitrogen Cycle highlighting bacteria.", "Nano Banana Pro", ["Select Gemini.", "Ask for cycle.", "Ecology."], "PROMPT TIP: 'Cycle shape: Circular flow. Icons: Lightning, Cow, Plant, Soil Bacteria. Arrows: Colour coded (Blue for Fixation, Red for Denitrification).'"),
+                createSubjChallenge("Science", 5, "Atom vs Cell", "Visualise scale: Carbon Atom vs Red Blood Cell.", "Scale Illustration", ["Gemini.", "Zoom out.", "Scale."], "PROMPT TIP: 'Powers of 10 zoom. Step 1: Atom (Angstroms). Step 2: DNA helix. Step 3: Virus. Step 4: Red Blood Cell (Micrometers).'"),
+                createSubjChallenge("Science", 6, "Experiment Analysis", "Python script analysing pendulum data for 'g'.", "Real-world Code", ["Gemini/Antigravity.", "Upload data.", "Calculate."], "PROMPT TIP: 'Input: CSV (Length, Period). Plot: T^2 vs L graph. Calculate Gradient. Formula: g = 4*pi^2 / Gradient. Error analysis included.'"),
+                createSubjChallenge("Science", 7, "Anatomy Guide", "Interactive Heart guide. Hover to see blood flow.", "Custom Interface", ["Gemini.", "Prompt heart.", "Test."], "PROMPT TIP: 'SVG Heart. Animation: Pulsing rhythm. Blue arrows for deoxygenated flow (Vena Cava -> Pulmonary Artery). Red for oxygenated.'"),
+                createSubjChallenge("Science", 8, "Science Fair Site", "Vibe code Science Fair landing page with forms.", "Vibe Coding", ["Gemini.", "Describe event.", "Sign up."], "PROMPT TIP: 'Theme: Lab Notebook. Background: Grid paper texture. Font: Handwritten header, Typewriter body. Form fields: Project Title, Hypothesis, Equipment Needed.'"),
+                createSubjChallenge("Science", 9, "Theory Explainer", "Coach explanation of 'General Relativity'. Critique analogy.", "Presentation Coach", ["Gemini.", "Record audio.", "Refine."], "PROMPT TIP: 'Analogy Check: Did they use the 'Bowling ball on a trampoline' sheet? Critique: Did they mention that space represents 4D spacetime, not just a 2D sheet?'"),
+                createSubjChallenge("Science", 10, "Star Lifecycle", "Poem about star lifecycle + particle visual.", "Art & Code", ["Gemini.", "Combine art/text.", "Creative."], "PROMPT TIP: 'Visual: Particle system. 1. Cloud (Nebula). 2. Collapse (Protostar). 3. Yellow glow (Main Sequence). 4. Explosion (Supernova). Sync poem stanzas to phases.'")
+            ],
+            "History": [
+                createSubjChallenge("History", 1, "WWII Alliance Map", "Interactive Map Europe 1942. Click for alliance status.", "Custom Interface", ["Gemini.", "Prompt map.", "Geopolitics."], "PROMPT TIP: 'Base map: 1942 Borders. Colours: Axis (Grey/Black), Allies (Blue), USSR (Red), Neutral (Beige). Click reveals leader and entry date.'"),
+                createSubjChallenge("History", 2, "Photo Analyst", "Interactive Yalta Conference photo. Click faces for bios.", "Interactive Image", ["Gemini.", "Upload photo.", "Analyse."], "PROMPT TIP: 'Identify: Churchill, Roosevelt, Stalin. Bio snippet must include their primary goal for the conference (e.g., Stalin: Security buffer zone).'"),
+                createSubjChallenge("History", 3, "Revolution Causes", "Infographic: Long vs Short term causes of French Revolution.", "Nano Banana Pro", ["Select Gemini.", "Categorise.", "Plan."], "PROMPT TIP: 'Metaphor: Powder Keg. Barrel = Long term (Inequality, Enlightenment). Fuse = Short term (American War debt). Spark = Storming of Bastille.'"),
+                createSubjChallenge("History", 4, "Empire Timeline", "Visualise Roman Empire expansion/contraction.", "Coded Visualization", ["Gemini.", "Run timelapse.", "Change."], "PROMPT TIP: 'Map tiles change colour from 753 BC to 476 AD. Counter: Year. Overlay text: Key events (e.g., 'Pax Romana').'"),
+                createSubjChallenge("History", 5, "Explorer Itinerary", "Map itinerary of Marco Polo's journey.", "Visual Layout", ["Gemini.", "Trace Silk Road.", "Travel."], "PROMPT TIP: 'Style: Vintage Cartography. Sea monsters in oceans. Dotted red line path. Pins at Venice, Acre, Hormuz, Kashgar, Shangdu.'"),
+                createSubjChallenge("History", 6, "Virtual Museum", "Vibe code Aztec museum exhibit site.", "Vibe Coding", ["Gemini.", "Describe exhibit.", "Display."], "PROMPT TIP: 'Colours: Turquoise, Gold, and Terracotta. Pattern: Geometric Aztec motifs. Header: 'The Sun Stone'. Feature: 3D-effect carousel of artifacts.'"),
+                createSubjChallenge("History", 7, "Debate Coach", "Coach debate: 'Was Versailles fair?'. Suggest German perspective.", "Presentation Coach", ["Gemini.", "Outline argument.", "Rebuttal."], "PROMPT TIP: 'Perspective: 'Diktat'. Key points: 1. War Guilt Clause 231 (Humiliation). 2. Reparations (Economic crippling). 3. Loss of Territory (13%).'"),
+                createSubjChallenge("History", 8, "Industrial Econ", "Deep dive Industrial Revolution economics. Mill profit sim.", "Deep Dive", ["Gemini.", "Simulate business.", "Econ."], "PROMPT TIP: 'Variables: Cotton Price, Wage Rate, Hours Worked. Output: Monthly Profit. Random Event: 'Worker Strike' or 'Machine Breakdown'.'"),
+                createSubjChallenge("History", 9, "Population Art", "Visualise world pop growth 1000AD-2000AD.", "Art & Code", ["Gemini.", "See explosion.", "Demographics."], "PROMPT TIP: 'Each dot = 1 million people. 1000AD: Sparse dots. 1800AD: Acceleration. 2000AD: Screen fills completely. Colour shift from Green (Agri) to Grey (Urban).'"),
+                createSubjChallenge("History", 10, "Army Scale", "Visualise Persian Army vs 300 Spartans.", "Scale Illustration", ["Gemini.", "Show numbers.", "Military."], "PROMPT TIP: 'One red pixel = 1 Spartan. One black pixel = 1 Persian. Show the massive block of 100,000+ pixels swarming the tiny red dot of 300.'")
+            ],
+            "Sociology": [
+                createSubjChallenge("Sociology", 1, "Demographic Shift", "Visualise UK age demographics 1950-2050.", "Coded Visualization", ["Gemini.", "Run pyramid.", "Demography."], "PROMPT TIP: 'Animation: Population Pyramid. 1950: Triangle shape. 2050: Coffin/Urn shape (Top heavy). Highlight 'Pensioner' bracket in purple.'"),
+                createSubjChallenge("Sociology", 2, "Theory Infographic", "Compare Marxism vs Functionalism on Education.", "Nano Banana Pro", ["Select Gemini.", "Compare theories.", "Revision."], "PROMPT TIP: 'Split Screen. Left (Func): Gear/Machine metaphor (Social Cohesion). Right (Marx): Pyramid/Chains metaphor (Social Control). Keywords: Meritocracy vs Myth.'"),
+                createSubjChallenge("Sociology", 3, "Stratification Sim", "Simulate social mobility. Change Education/Wealth variables.", "Scientific Concept", ["Gemini.", "Run model.", "Class."], "PROMPT TIP: 'Snakes and Ladders style. Ladder = University Degree. Snake = Economic Recession. Run 100 simulations to show the probability of moving from Working to Upper class.'"),
+                createSubjChallenge("Sociology", 4, "Methods Guide", "Decision tree for Research Methods (Qual vs Quant).", "Custom Interface", ["Gemini.", "Prompt guide.", "Research."], "PROMPT TIP: 'Question 1: Large sample size? Yes -> Quantitative -> Survey. No -> Qualitative -> Deep insight? -> Interview vs Observation.'"),
+                createSubjChallenge("Sociology", 5, "Street Scene Analysis", "Sociological analysis of street photo. Click gentrification signs.", "Interactive Image", ["Gemini.", "Upload photo.", "Analyse."], "PROMPT TIP: 'Tag: 'Artisan Coffee Shop' -> Sign of middle-class consumption. Tag: 'CCTV' -> Foucault's Panopticon/Surveillance. Tag: 'Homeless Spikes' -> Hostile Architecture.'"),
+                createSubjChallenge("Sociology", 6, "Social Action Site", "Vibe code site for 'Food Poverty' project.", "Vibe Coding", ["Gemini.", "Describe cause.", "Citizenship."], "PROMPT TIP: 'Tone: Urgent but Hopeful. Colours: Green and Orange. Features: 'Donate Now' button, 'Find Food Bank' map, Volunteer signup form.'"),
+                createSubjChallenge("Sociology", 7, "Research Presentation", "Coach NEA findings presentation. Critique data story.", "Presentation Coach", ["Gemini.", "Upload slides.", "Skill."], "PROMPT TIP: 'Check: Is the hypothesis clearly linked to the conclusion? Critique: 'You listed stats but didn't explain the *implication* of the 20% drop.''"),
+                createSubjChallenge("Sociology", 8, "Survey Analyst", "Python script analysing survey CSV. Frequency tables.", "Real-world Code", ["Gemini/Antigravity.", "Get script.", "Analyse."], "PROMPT TIP: 'Library: Pandas. Function: `value_counts()` and `crosstab()`. Generate a correlation matrix heatmap for variables 'Income' and 'Education Level'.'"),
+                createSubjChallenge("Sociology", 9, "Sample Calculator", "Calculator for representative sample size.", "Practical Tools", ["Gemini.", "Input pop.", "Research."], "PROMPT TIP: 'Inputs: Population Size (N), Confidence Level (95%), Margin of Error (5%). Output: Sample Size (n). Formula: Slovin's or Cochran's.'"),
+                createSubjChallenge("Sociology", 10, "Network Viz", "Visualise 'Six Degrees of Separation' network.", "Art & Code", ["Gemini.", "Run network.", "Connections."], "PROMPT TIP: 'Force-Directed Graph. Nodes = People. Edges = Friendships. Highlight the 'Hubs' (people with disproportionate connections) in yellow.'")
+            ],
+            "MfL": [
+                createSubjChallenge("MfL", 1, "The Conversation Simulator", "Create a roleplay where you are a shopkeeper in [COUNTRY] and I am a customer.", "Custom Interface", ["Gemini (Thinking Mode).", "Start chat.", "Practice."], "PROMPT TIP: 'Context: Buying groceries. Constraint: Correct my grammar after every 3 turns. Level: A2/B1.'"),
+                createSubjChallenge("MfL", 2, "The Tense Timeline", "Create an interactive timeline showing the difference between Perfect and Imperfect tenses.", "Interactive Image", ["Gemini (Thinking Mode) + Canvas.", "Ask for code.", "Visualise."], "PROMPT TIP: 'Visual: Two parallel lines. Imperfect: Wavy line (ongoing action). Perfect: X mark (completed action). Label examples in target language.'"),
+                createSubjChallenge("MfL", 3, "The Cultural Infographic", "Generate an infographic on 'Day of the Dead' traditions with key vocabulary.", "Nano Banana Pro", ["Gemini - Create Images.", "Ask for graphic.", "Display."], "PROMPT TIP: 'Style: Mexican Folk Art (Papel Picado). Icons: Calavera (Skull), Marigold, Altar. Label items in Spanish and English.'"),
+                createSubjChallenge("MfL", 4, "The Pronunciation Coach", "Analyse this recording of me speaking [LANGUAGE]. Correct my accent and intonation.", "Presentation Coach", ["Gemini (Fast Mode) + Audio.", "Record audio.", "Get feedback."], "PROMPT TIP: 'Focus on vowel sounds. If I say the 'u' sound incorrectly in French, give me a phonetic comparison to an English word.'"),
+                createSubjChallenge("MfL", 5, "The Verb Conjugation App", "Code a simple HTML app to test irregular verb conjugations.", "Coding/Tools", ["Gemini (Thinking Mode) + Canvas.", "Ask for code.", "Test."], "PROMPT TIP: 'Input: Infinitive. Output: User types Past Participle. Feature: Score counter and 'Try Again' shake animation for wrong answers.'"),
+                createSubjChallenge("MfL", 6, "The Idiom Illustrator", "Create a literal image of the idiom '[IDIOM]' to help students guess the meaning.", "Visuals", ["Gemini - Create Images.", "Input idiom.", "Guess."], "PROMPT TIP: 'Idiom: 'It's raining cats and dogs'. Style: Surrealist Painting. Visual: Cats and dogs falling from storm clouds with umbrellas.'"),
+                createSubjChallenge("MfL", 7, "The Translation Critic", "Compare these two translations of [TEXT]. Which captures the nuance better?", "Critical Thinking", ["Gemini (Thinking Mode).", "Paste texts.", "Discuss."], "PROMPT TIP: 'Highlight semantic differences. Explain why translation A is more formal/archaic while translation B is more colloquial.'"),
+                createSubjChallenge("MfL", 8, "The Real-World Menu", "Create a restaurant menu in [LANGUAGE] with detailed descriptions for a roleplay.", "Resources", ["Gemini (Fast Mode) + Canvas.", "Describe cuisine.", "Print."], "PROMPT TIP: 'Cuisine: French Bistro. Layout: Elegant script font. Sections: Entrées, Plats, Desserts. Prices in Euros. Include allergy warnings in French.'"),
+                createSubjChallenge("MfL", 9, "The Vocab Scraper", "Extract 20 key B1 level words from this article '[PASTE TEXT]' and format for Anki.", "Resources", ["Gemini (Fast Mode).", "Paste text.", "Get CSV."], "PROMPT TIP: 'Format: Column A (Target Language), Column B (English Definition), Column C (Example Sentence). Exclude cognates.'"),
+                createSubjChallenge("MfL", 10, "The Pen Pal Agent", "Draft a welcome email to a partner school in [COUNTRY] proposing a pen pal scheme.", "Admin", ["Gemini Agent.", "Draft email.", "Send."], "PROMPT TIP: 'Tone: Professional yet warm. Suggest a video call exchange as a first step. Mention mutual cultural benefits.'")
+            ]
+        };
+
+        // --- COMPONENT LOGIC ---
+
+        const GuideModal = ({ onClose }) => (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
+                <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl p-8 border-4 border-[#c94084] shadow-2xl relative">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 font-bold sticky top-0 z-50 bg-white/80 rounded-full p-2"><Icons.X size={24}/></button>
+                    
+                    <div className="text-center mb-8">
+                        <h2 className="text-3xl font-bold text-gray-800 font-hand mb-2">Gemini Guide</h2>
+                        <p className="text-gray-500">How to use the latest features and select the right tool.</p>
+                    </div>
+
+                    {/* ALERT BOX FOR INTERACTIVE TOOLS */}
+                    <div className="bg-[#fff0f7] border-l-4 border-[#c94084] p-4 mb-8 rounded-r-lg shadow-sm">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <Icons.Code size={24} className="text-[#c94084]" />
+                            </div>
+                            <div className="ml-3">
+                                <h3 className="text-lg font-bold text-[#c94084]">Interactive = Canvas</h3>
+                                <div className="mt-2 text-sm text-gray-700">
+                                    <p>Whenever a challenge asks you to build an <strong>App</strong>, <strong>Website</strong>, <strong>Timeline</strong>, or <strong>Interactive Visual</strong>, you must ensure Gemini opens the <strong>Canvas</strong> interface (the code editor view) to preview the result.</p>
+                                    <p className="mt-1 font-bold">Look for the "Open in Canvas" button or explicitly ask Gemini to "Use Canvas" in your prompt.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 className="text-xl font-bold text-[#c94084] mb-4 flex items-center"><Icons.Info size={20} className="mr-2"/> How to Select a Tool</h3>
+                            <p className="text-gray-600 mb-4 text-sm">Most challenges use <strong>Gemini</strong> at <strong>gemini.google.com</strong>.</p>
+                            <div className="space-y-3">
+                                {Object.entries(TOOL_LOOKUP).slice(0, 7).map(([key, val]) => (
+                                    <div key={key} className="bg-gray-50 p-3 rounded-lg border border-gray-100 text-sm">
+                                        <span className="font-bold text-gray-800 block mb-1">{key}</span>
+                                        <span className="text-gray-600" dangerouslySetInnerHTML={{__html: val.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}}></span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                             <h3 className="text-xl font-bold text-[#c94084] mb-4 flex items-center"><Icons.Sparkles size={20} className="mr-2"/> Feature Glossary</h3>
+                             <p className="text-gray-600 mb-4 text-sm">A quick summary of the 15 new capabilities.</p>
+                             <div className="space-y-3">
+                                {FEATURE_GLOSSARY.slice(0, 8).map((f) => (
+                                    <div key={f.title} className="bg-gray-50 p-3 rounded-lg border border-gray-100 text-sm">
+                                        <span className="font-bold text-gray-800 block mb-1">{f.title}</span>
+                                        <span className="text-gray-600">{f.desc}</span>
+                                    </div>
+                                ))}
+                             </div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">More Tools & Features</h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                             {Object.entries(TOOL_LOOKUP).slice(7).map(([key, val]) => (
+                                <div key={key} className="text-xs text-gray-500">
+                                    <strong className="text-gray-700">{key}:</strong> <span dangerouslySetInnerHTML={{__html: val.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}}></span>
+                                </div>
+                             ))}
+                             {FEATURE_GLOSSARY.slice(8).map((f) => (
+                                <div key={f.title} className="text-xs text-gray-500">
+                                    <strong className="text-gray-700">{f.title}:</strong> {f.desc}
+                                </div>
+                             ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const SketchButton = ({ onClick, children, primary = false, className = "", active = false }) => (
+            <button
+                onClick={onClick}
+                className={`
+                relative px-4 py-2 md:px-6 md:py-3 font-bold text-sm md:text-lg rounded-xl border-2 border-gray-800 font-hand
+                transition-all duration-200 transform hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(55,65,81,1)]
+                active:translate-y-0 active:shadow-none
+                ${primary || active
+                    ? 'bg-[#c94084] text-white hover:bg-[#d65d96]' 
+                    : 'bg-white text-gray-800 hover:bg-gray-50'}
+                ${className}
+                `}
+            >
+                {children}
+            </button>
+        );
+
+        const NavButton = ({ active, onClick, children }) => (
+            <button
+                onClick={onClick}
+                className={`
+                px-4 py-2 rounded-lg font-bold border-2 transition-all duration-200
+                ${active 
+                    ? 'bg-gray-800 text-white border-gray-800 shadow-[2px_2px_0px_0px_#c94084]' 
+                    : 'bg-transparent text-gray-600 border-transparent hover:bg-gray-100'}
+                `}
+            >
+                {children}
+            </button>
+        );
+
+        const LevelCard = ({ level, title, description, icon: Icon, onClick }) => (
+            <div 
+                onClick={onClick}
+                className="group cursor-pointer bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-[#c94084] transition-all duration-300 hover:shadow-xl relative overflow-hidden h-full flex flex-col"
+            >
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">
+                    <Icon size={64} color="#c94084" />
+                </div>
+                <div className="relative z-10 flex-grow">
+                    <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full mb-3 uppercase tracking-wider">
+                        {isNaN(level) ? 'Subject' : `Level ${level}`}
+                    </span>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-[#c94084] transition-colors font-hand text-2xl">
+                        {title.includes(':') ? title.split(': ')[1] : title}
+                    </h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                        {description}
+                    </p>
+                </div>
+            </div>
+        );
+
+        const ChallengeDetail = ({ challenge, onBack }) => {
+            const [copied, setCopied] = useState(false);
+
+            const handleCopy = () => {
+                navigator.clipboard.writeText(challenge.prompt);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            };
+            
+            // Derive tool tip based on challenge.tool OR category fallback
+            const toolInstruction = challenge.tool || TOOL_LOOKUP[challenge.category] || "Use Gemini.";
+
+            return (
+                <div className="bg-white rounded-3xl border-2 border-gray-800 shadow-[8px_8px_0px_0px_rgba(201,64,132,0.3)] overflow-hidden max-w-4xl mx-auto fade-in">
+                    <div className="bg-gray-50 border-b-2 border-gray-200 p-6 flex items-center justify-between sticky top-0 z-20">
+                        <button 
+                            onClick={onBack}
+                            className="flex items-center text-gray-500 hover:text-[#c94084] font-bold transition-colors"
+                        >
+                            <Icons.ArrowLeft size={20} className="mr-2" /> Back
+                        </button>
+                        <div className="flex items-center space-x-2">
+                            {challenge.subject && (
+                                <span className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full">
+                                    {challenge.subject}
+                                </span>
+                            )}
+                            <span className="bg-[#c94084] text-white text-xs font-bold px-3 py-1 rounded-full">
+                                {challenge.category}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="p-8 md:p-12">
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 font-hand">
+                            {challenge.title}
+                        </h2>
+
+                        {/* The Prompt Card */}
+                        <div className="bg-gray-900 rounded-xl p-6 md:p-8 relative mb-10 group shadow-lg">
+                            <div className="absolute top-4 right-4">
+                                <button 
+                                    onClick={handleCopy}
+                                    className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors flex items-center gap-2"
+                                    title="Copy to clipboard"
+                                >
+                                    {copied ? <Icons.CheckCircle2 size={18} className="text-green-400"/> : <Icons.Copy size={18} />}
+                                    <span className="text-xs font-bold">{copied ? 'Copied!' : 'Copy'}</span>
+                                </button>
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">
+                                Prompt Template
+                            </div>
+                            <p className="text-white text-lg md:text-xl font-mono leading-relaxed whitespace-pre-wrap">
+                                {challenge.prompt}
+                            </p>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-12">
+                            <div>
+                                <h3 className="text-xl font-bold text-[#c94084] mb-4 flex items-center font-hand">
+                                    <span className="bg-[#c94084] text-white w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">
+                                        <Icons.ArrowRight size={16} />
+                                    </span>
+                                    How to run this
+                                </h3>
+                                
+                                {/* Dynamic Tool Instruction + Steps */}
+                                <div className="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800 flex items-start">
+                                    <Icons.Info size={16} className="mt-1 mr-2 flex-shrink-0" />
+                                    <span dangerouslySetInnerHTML={{__html: `<strong>Tool:</strong> ${toolInstruction.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}`}}></span>
+                                </div>
+
+                                <ul className="space-y-4">
+                                    {challenge.steps.map((step, idx) => (
+                                        <li key={idx} className="flex items-start text-gray-700">
+                                            <span className="font-bold text-gray-300 mr-3 text-lg">0{idx + 1}</span>
+                                            <span className="mt-1">{step}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            
+                            <div className="bg-[#fff0f7] p-6 rounded-2xl border-2 border-[#f3d1e3] slide-up">
+                                <h3 className="text-lg font-bold text-[#c94084] mb-3 flex items-center font-hand">
+                                    <Icons.Lightbulb size={20} className="mr-2" />
+                                    Pro Prompting Tip
+                                </h3>
+                                <p className="text-gray-700 italic font-medium leading-relaxed">
+                                    "{challenge.tip}"
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const IdeaGenerator = ({ onClose }) => {
+            const [idea, setIdea] = useState(null);
+
+            const generateIdea = () => {
+                const action = ["Create a debate script", "Design a quiz", "Write a letter", "Build a rubric", "Simulate a historical figure", "Draft a lesson plan", "Code a calculator"][Math.floor(Math.random() * 7)];
+                // Subjects sorted alphabetically
+                const topics = [
+                    "Applied Theatre", 
+                    "Dance", 
+                    "Digital Arts", 
+                    "English", 
+                    "Film and Media Production", 
+                    "History", 
+                    "Maths", 
+                    "MfL", 
+                    "Music", 
+                    "Music Technology", 
+                    "Production Arts", 
+                    "Science", 
+                    "Sociology", 
+                    "Theatre", 
+                    "Visual Arts and Design"
+                ].concat("Musical Theatre"); // Ensure all included, re-sorted below just in case logic needed
+                
+                const sortedTopics = topics.sort();
+                const topic = sortedTopics[Math.floor(Math.random() * sortedTopics.length)];
+
+                const constraint = ["using only emojis", "for a 14-19 year old audience", "in the style of a pirate", "under 100 words", "focusing on common misconceptions", "that includes a physical movement activity"][Math.floor(Math.random() * 6)];
+                
+                setIdea({
+                    title: "The Random Remix",
+                    prompt: `Ask Gemini to ${action.toLowerCase()} about ${topic} ${constraint}.`,
+                    rationale: "This forces you to test Gemini's creative limits and adaptability."
+                });
+            };
+
+            useEffect(() => { generateIdea(); }, []);
+
+            return (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-3xl p-8 border-4 border-[#c94084] shadow-2xl relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 font-bold">Close</button>
+                        <div className="text-center mb-8">
+                            <div className="inline-block p-3 bg-gray-100 rounded-full mb-4">
+                                <Icons.Sparkles className="text-[#c94084]" size={32} />
+                            </div>
+                            <h2 className="text-3xl font-bold text-gray-800 font-hand">Challenge Remix</h2>
+                            <p className="text-gray-500">A fresh, randomly generated challenge.</p>
+                        </div>
+                        {idea && (
+                            <div className="bg-gray-50 rounded-xl p-6 border-2 border-dashed border-gray-300 mb-8 text-center">
+                                <p className="text-xl font-bold text-gray-800 leading-snug mb-4">"{idea.prompt}"</p>
+                                <p className="text-sm text-gray-500 bg-white inline-block px-3 py-1 rounded-full border border-gray-200">Why? {idea.rationale}</p>
+                            </div>
+                        )}
+                        <div className="flex gap-4 flex-col sm:flex-row">
+                            <SketchButton onClick={generateIdea} className="w-full flex justify-center items-center gap-2"><Icons.RefreshCw size={20} /> Spin Again</SketchButton>
+                            <SketchButton onClick={onClose} primary className="w-full">Accept Challenge</SketchButton>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [view, setView] = useState('dashboard');
+            // 'mode' is no longer needed for separate views, but we use 'tab' for the dashboard switcher
+            const [dashboardTab, setDashboardTab] = useState('levels'); 
+            const [currentSelection, setCurrentSelection] = useState(null); 
+            const [selectedChallenge, setSelectedChallenge] = useState(null);
+            const [showGenerator, setShowGenerator] = useState(false);
+            const [showGuide, setShowGuide] = useState(false);
+            const [logoError, setLogoError] = useState(false);
+
+            // Expanded General Challenges
+            const GENERAL_CHALLENGES = [
+                // LEVEL 1: Quick Wins
+                { id: 'l1-1', level: 1, title: "The Multi-Voice Explainer", category: "Differentiation", tool: "Gemini (Fast Mode)", prompt: "Explain [TOPIC] in 3 formats: spoken podcast script, visual poster outline, revision card summary.", steps: ["Identify topic.", "Paste prompt.", "Review output."], tip: "Ask for 'spoken script' to include [Pause] markers and phonetic spellings for difficult terms." },
+                { id: 'l1-2', level: 1, title: "The Misconception Spotter", category: "Assessment", tool: "Gemini (Thinking Mode)", prompt: "Predict 3 misconceptions and 1 misleading interpretation for this uploaded exam question: [UPLOAD PDF].", steps: ["Upload question.", "Run prompt.", "Refine instructions."], tip: "Prompt: 'Act as a Chief Examiner. Identify the 'distractor' element in this question that will trip up lower-ability students.'" },
+                { id: 'l1-3', level: 1, title: "The Feedback Style Swap", category: "Feedback", tool: "Gemini (Fast Mode)", prompt: "Rewrite this feedback '[PASTE]' in 3 tones: Concise, Student-Friendly, Academic.", steps: ["Find comment.", "Run prompt.", "Choose tone."], tip: "For 'Student-Friendly', prompt: 'Use a growth-mindset tone. Start with a 'Glow' (strength) and end with a 'Grow' (target).'" },
+                { id: 'l1-4', level: 1, title: "The Jargon Buster", category: "Accessibility", tool: "Gemini (Fast Mode)", prompt: "Rewrite this complex academic paragraph: '[PASTE TEXT]' for a reading age of 10.", steps: ["Copy complex text.", "Paste into Gemini.", "Check readability."], tip: "Great for making policy documents or academic theory accessible to younger students or parents." },
+                { id: 'l1-5', level: 1, title: "The Email Polisher", category: "Communication", tool: "Gemini (Fast Mode)", prompt: "I need to send an email to a parent about [ISSUE]. Rewrite my draft to be empathetic but firm, professional, and solution-focused.", steps: ["Draft rough notes.", "Paste to Gemini.", "Review tone."], tip: "You can ask Gemini to 'remove any passive-aggressive language' to ensure professionalism." },
+                { id: 'l1-6', level: 1, title: "The Acronym Decoder", category: "Admin", tool: "Gemini (Fast Mode)", prompt: "Scan this text: '[PASTE TEXT]'. List all educational acronyms found and provide their full definition in plain English.", steps: ["Find jargon-heavy doc.", "Paste text.", "Get glossary."], tip: "Use this when onboarding new staff or NQTs who might be overwhelmed by school-speak." },
+                { id: 'l1-7', level: 1, title: "The Slide Deck Outliner", category: "Planning", tool: "Gemini (Fast Mode)", prompt: "Create a 5-slide outline for a presentation on [TOPIC] for [Year Group] in Google Slides.", steps: ["Specify topic.", "Get outline.", "Create Slides."], tip: "Ask Gemini to suggest images or diagrams for each slide." },
+                { id: 'l1-8', level: 1, title: "The Formatter", category: "Admin", tool: "Gemini (Fast Mode) + Canvas", prompt: "Take this messy list of bullet points '[PASTE]' and format them into a clean table with headers 'Item', 'Category', 'Priority' for Google Docs.", steps: ["Copy list.", "Open Canvas.", "Get table."], tip: "You can export the table directly to Google Sheets from Canvas." },
+                { id: 'l1-9', level: 1, title: "The Sheet Formula Fixer", category: "Admin", tool: "Gemini (Fast Mode)", prompt: "Explain this Google Sheets formula in plain English: '[PASTE FORMULA]'.", steps: ["Copy formula.", "Get explanation.", "Understand logic."], tip: "If the formula is broken, paste it and ask 'Why is this giving an error?'" },
+                { id: 'l1-10', level: 1, title: "The Youtube Summariser", category: "Resources", tool: "Gemini (Fast Mode) + YouTube Ext", prompt: "Summarise this educational YouTube video [PASTE URL] into 3 key takeaways for a lesson starter.", steps: ["Find video.", "Paste URL.", "Get summary."], tip: "Ensure the YouTube extension is enabled in Gemini settings." },
+
+                // LEVEL 2: Creative Practice
+                { id: 'l2-1', level: 2, title: "The Starter Generator", category: "Planning", tool: "Gemini (Fast Mode)", prompt: "Generate a retrieval starter, curiosity hook, and reflection exit for [OBJECTIVE].", steps: ["Paste objective.", "Review options.", "Pick one."], tip: "Prompt: 'Curiosity Hook: Create a 'Two Truths and a Lie' scenario related to [Topic] to spark debate immediately.'" },
+                { id: 'l2-2', level: 2, title: "The Blank Page Rescue", category: "Scaffolding", tool: "Gemini (Fast Mode)", prompt: "Provide 3 low-stakes entry points, 1 scaffold, and 1 extension for [TASK].", steps: ["Identify hard task.", "Get entry points.", "Lower barrier."], tip: "Prompt: 'Entry Point: Create a 'fill-in-the-blanks' first sentence. Scaffold: Provide a bank of 5 key vocabulary words they must use.'" },
+                { id: 'l2-3', level: 2, title: "The Role Shift", category: "Critical Thinking", tool: "Gemini (Thinking Mode)", prompt: "Critique [IDEA] as: a Mentor, a Bored Student, an Examiner.", steps: ["Outline idea.", "Read critiques.", "Adjust plan."], tip: "Prompt: 'Persona: A 15-year-old student who hates this subject. Tell me exactly which part of this lesson plan is boring and why.'" },
+                { id: 'l2-4', level: 2, title: "The Analogy Architect", category: "Explanation", tool: "Gemini (Fast Mode)", prompt: "Give me 3 distinct analogies to explain [CONCEPT] using the theme of [THEME, e.g., A Pizza Shop].", steps: ["Pick difficult concept.", "Choose relatable theme.", "Get analogies."], tip: "Try themes like 'Football', 'Video Games', or 'Cooking' to match student interests." },
+                { id: 'l2-5', level: 2, title: "The Quiz Remix", category: "Engagement", tool: "Gemini (Fast Mode)", prompt: "Turn this list of 5 questions: '[PASTE QUESTIONS]' into a 'Choose Your Own Adventure' narrative where the correct answer advances the story.", steps: ["Get standard quiz.", "Paste into Gemini.", "Gamify."], tip: "Ask for a specific genre, e.g., 'Zombie Survival' or 'Space Mission' to increase buy-in." },
+                { id: 'l2-6', level: 2, title: "The Lesson Title Doctor", category: "Engagement", tool: "Gemini (Fast Mode)", prompt: "Rewrite these 3 boring lesson titles: '[TITLES]' as clickbait YouTube titles to grab student attention.", steps: ["List current titles.", "Get catchy versions.", "Update slides."], tip: "Instead of 'Introduction to Algebra', you might get 'The Secret Code that Runs the Universe'." },
+                { id: 'l2-7', level: 2, title: "The Image Generator", category: "Visuals", tool: "Gemini - Create Images", prompt: "Create an image of [HISTORICAL EVENT/SCENE] in the style of a graphic novel to engage students.", steps: ["Describe scene.", "Select style.", "Generate."], tip: "Use specific art styles like 'Cyberpunk', 'Watercolour', or 'Pixel Art' to match the lesson theme." },
+                { id: 'l2-8', level: 2, title: "The Worksheet Beautifier", category: "Resources", tool: "Gemini (Fast Mode) + Canvas", prompt: "Reformat this plain text worksheet content into a visually structured layout.", steps: ["Paste text.", "Open Canvas.", "Format."], tip: "Ask Gemini to use Markdown tables and headers to organize the information clearly." },
+                { id: 'l2-9', level: 2, title: "The Hook Builder", category: "Engagement", tool: "Gemini (Thinking Mode)", prompt: "Suggest 3 creative ways to use Google Earth/Maps to introduce the topic of [TOPIC].", steps: ["Identify topic.", "Get ideas.", "Explore Maps."], tip: "Think about 'Virtual Field Trips' or measuring distances for maths/science." },
+                { id: 'l2-10', level: 2, title: "The Emoji Translator", category: "Engagement", tool: "Gemini (Fast Mode)", prompt: "Rewrite this lesson objective using only emojis to create a 'decode the goal' starter activity.", steps: ["Paste objective.", "Get emojis.", "Display."], tip: "Have students guess the objective before revealing the text version." },
+
+                // LEVEL 3: Advanced & Playful
+                { id: 'l3-1', level: 3, title: "The Mini App Challenge", category: "Coding/Tools", tool: "Gemini (Thinking Mode) + Canvas", prompt: "Create a single-file HTML/JS app for a [TOOL] for [SUBJECT].", steps: ["Ask for code.", "Save as HTML.", "Run."], tip: "Prompt: 'Write code for a single HTML file. Style: Modern CSS. Feature: A 'Random Name Picker' that plays a sound effect when a name is chosen.'" },
+                { id: 'l3-2', level: 3, title: "The Interactive Resource", category: "Resources", tool: "Gemini (Thinking Mode) + Canvas", prompt: "Design HTML structure for a revision page on [TOPIC] with accordions.", steps: ["Focus on clarity.", "Build handout.", "Add ARIA."], tip: "Prompt: 'Use the <details> and <summary> HTML tags for the accordions. Style the summary tag to look like a clickable button in blue.'" },
+                { id: 'l3-3', level: 3, title: "The Data Thinker", category: "Data Analysis", tool: "Gemini (Thinking Mode)", prompt: "Analyse this anonymised data [PASTE]. Find patterns and suggest 3 interventions.", steps: ["Remove names.", "Find trends.", "Check context."], tip: "Prompt: 'Format output as a table. Columns: Identified Issue, Evidence from Data, Suggested Intervention, Expected Impact.'" },
+                { id: 'l3-4', level: 3, title: "The Rubric Transformer", category: "Assessment", tool: "Gemini (Fast Mode) + Canvas", prompt: "Convert this standard rubric: '[PASTE RUBRIC]' into a student-friendly checklist using Markdown.", steps: ["Copy complex rubric.", "Paste.", "Get checklist."], tip: "Ask Gemini to 'remove teacher-speak and use 'I can' statements' for the checklist items." },
+                { id: 'l3-5', level: 3, title: "The Scenario Simulator", category: "Interactive", tool: "Gemini (Fast Mode)", prompt: "Create a text-based roleplay where you play [HISTORICAL FIGURE]. I will ask questions, and you answer in character.", steps: ["Choose figure.", "Start chat.", "Students ask Qs."], tip: "Use this on the big screen. Have students shout out questions for you to type." },
+                { id: 'l3-6', level: 3, title: "The Flashcard Factory", category: "Resources", tool: "Gemini (Fast Mode)", prompt: "Take this text: '[PASTE TEXT]'. Extract 10 key terms and definitions and format them as a CSV for Anki import.", steps: ["Paste source text.", "Get CSV.", "Import to Anki."], tip: "This automates the creation of revision decks. You can specify 'Answer must be under 10 words'." },
+                { id: 'l3-7', level: 3, title: "The Google Form Creator", category: "Assessment", tool: "Gemini (Fast Mode)", prompt: "Draft 10 multiple choice questions for a Google Form on [TOPIC], indicating the correct answer and a feedback comment for incorrect answers.", steps: ["Select topic.", "Get questions.", "Paste to Forms."], tip: "Ensure feedback comments explain *why* the answer is wrong to aid learning." },
+                { id: 'l3-8', level: 3, title: "The Gamified Tracker", category: "Engagement", tool: "Gemini (Thinking Mode)", prompt: "Create a gamified points system for class behaviour tracking that I can use in Google Sheets.", steps: ["Define behaviours.", "Get logic.", "Build Sheet."], tip: "Ask for formulas to calculate 'Level Up' thresholds based on points." },
+                { id: 'l3-9', level: 3, title: "The Interactive Timeline", category: "Resources", tool: "Gemini (Thinking Mode) + Canvas", prompt: "Generate code for a simple interactive HTML timeline of [EVENT].", steps: ["Choose event.", "Get code.", "Share."], tip: "Specify 'Responsive Design' so it works on mobile devices." },
+                { id: 'l3-10', level: 3, title: "The 'Choose Your Path' Story", category: "Interactive", tool: "Gemini (Thinking Mode)", prompt: "Write a branching narrative story about [TOPIC] where the student chooses the outcome.", steps: ["Set context.", "Get story.", "Read aloud."], tip: "Pause at key decision points and let the class vote on the next step." },
+
+                // LEVEL 4: Professional Reflection
+                { id: 'l4-1', level: 4, title: "The Practice Mirror", category: "Reflection", tool: "Gemini (Thinking Mode)", prompt: "List 5 characteristics of 'strong practice' in [SUBJECT].", steps: ["Read list.", "Challenge it.", "Refine philosophy."], tip: "Prompt: 'Base your answer on the latest research from the [Subject Association]. Contrast this with common outdated practices.'" },
+                { id: 'l4-2', level: 4, title: "The Workload Audit", category: "Wellbeing", tool: "Gemini (Thinking Mode)", prompt: "Suggest 3 ways to streamline [TASK] using tech/batching.", steps: ["Pick task.", "Evaluate suggestions.", "Implement one."], tip: "Prompt: 'Focus on 'Batch Processing'. How can I group this task to do it once a week instead of every day? Suggest a workflow.'" },
+                { id: 'l4-3', level: 4, title: "The Future Student", category: "Strategy", tool: "Gemini (Thinking Mode)", prompt: "Describe independent learner needs in [SUBJECT] in 2 years.", steps: ["Backward plan.", "Check scaffolds.", "Adjust planning."], tip: "Prompt: 'Focus on AI literacy. What specific prompt engineering skills will a student need to master [Subject] content in 2027?'" },
+                { id: 'l4-4', level: 4, title: "The Devil's Advocate", category: "Critical Thinking", tool: "Gemini (Thinking Mode)", prompt: "Here is my argument for [POLICY/IDEA]. Give me the 3 strongest counter-arguments against it.", steps: ["Draft idea.", "Get critique.", "Strengthen case."], tip: "Use this to prep for department meetings. It helps you anticipate objections." },
+                { id: 'l4-5', level: 4, title: "The Meeting Minutes Assistant", category: "Admin", tool: "Gemini (Fast Mode) + Workspace", prompt: "Summarise these rough meeting notes: '[PASTE NOTES]'. List Action Points, Owners, and Deadlines in a table.", steps: ["Paste notes.", "Get table.", "Email team."], tip: "Gemini is excellent at parsing messy text into structured tables." },
+                { id: 'l4-6', level: 4, title: "The Skill Gap Analysis", category: "Curriculum", tool: "Gemini (Thinking Mode)", prompt: "Review this scheme of work summary: '[PASTE SUMMARY]'. Where can I explicitly teach 'Resilience' and 'Collaboration'?", steps: ["Paste SoW.", "Identify gaps.", "Insert skills."], tip: "Ask for 'low-prep' suggestions that fit naturally into the existing lessons." },
+                { id: 'l4-7', level: 4, title: "The Policy Inclusive Check", category: "Inclusion", tool: "Gemini (Thinking Mode)", prompt: "Review this school policy draft '[PASTE]' for inclusive language and suggest neutral alternatives.", steps: ["Paste policy.", "Get suggestions.", "Edit."], tip: "Look for gendered language or assumptions about home life." },
+                { id: 'l4-8', level: 4, title: "The Drive Organiser", category: "Admin", tool: "Gemini (Fast Mode)", prompt: "Suggest a logical folder structure for a [SUBJECT] department Google Drive to improve collaboration.", steps: ["Describe current mess.", "Get structure.", "Reorganize."], tip: "Ask for a naming convention for files to ensure consistency." },
+                { id: 'l4-9', level: 4, title: "The CPD Planner", category: "Strategy", tool: "Gemini (Thinking Mode)", prompt: "Create a 6-week CPD schedule for Learning Facilitators focusing on [TOPIC], utilizing Google Meet features.", steps: ["Choose topic.", "Get schedule.", "Present."], tip: "Include practical 'try it now' tasks in each session." },
+                { id: 'l4-10', level: 4, title: "The Report Comment Bank", category: "Admin", tool: "Gemini (Fast Mode)", prompt: "Generate a bank of gender-neutral report comments for 'Communication Skills' ranging from emerging to exceeding.", steps: ["Specify skill.", "Get bank.", "Use."], tip: "Ensure comments focus on observable behaviours rather than personality traits." },
+
+                // LEVEL 5: Stretch for the Curious
+                { id: 'l5-1', level: 5, title: "The Multimodal Task", category: "Creativity", tool: "Gemini (Thinking Mode)", prompt: "Build a 3-step task around this image [UPLOAD] moving from observation to inference.", steps: ["Find image.", "Upload.", "Structure cognitive leap."], tip: "Prompt: 'Step 1: 'See' (List 5 facts). Step 2: 'Think' (What is happening?). Step 3: 'Wonder' (Ask a question the image doesn't answer).'" },
+                { id: 'l5-2', level: 5, title: "The Assessment Designer", category: "Assessment", tool: "Gemini (Thinking Mode)", prompt: "Draft success criteria for [TASK], a model response, and a weak response with annotations.", steps: ["Use weak response for critique.", "Check model."], tip: "Prompt: 'Weak Response: Include common errors (e.g., lack of evidence). Annotate these errors in bold brackets [like this] explaining the mistake.'" },
+                { id: 'l5-3', level: 5, title: "The Boundary Test", category: "Ethics", tool: "Gemini (Thinking Mode)", prompt: "Explain where AI support should STOP for [ASSIGNMENT] to ensure learning.", steps: ["Co-construct rules.", "Clarify lines."], tip: "Prompt: 'Create a 'Traffic Light' system. Red: AI cannot do this (e.g., writing the essay). Amber: AI can help (e.g., brainstorming). Green: AI encouraged (e.g., proofreading).'" },
+                { id: 'l5-4', level: 5, title: "The Audio Feedback Assistant", category: "Multimodal", tool: "Gemini (Fast Mode) + Audio", prompt: "Transcribe this audio file of my verbal feedback. Identify the 3 most common themes for a class slide.", steps: ["Record feedback.", "Upload audio.", "Get themes."], tip: "Use Gemini's multimodal capabilities. Great for turning 30 mins of talking into 1 slide." },
+                { id: 'l5-5', level: 5, title: "The Visual Syllabus", category: "Visuals", tool: "Gemini - Nano Banana Pro", prompt: "Generate a 'Tube Map' style infographic for this text syllabus: '[PASTE SYLLABUS]'.", steps: ["Select Nano Banana.", "Paste text.", "Get map."], tip: "Visual metaphors help students understand the 'journey' of the curriculum." },
+                { id: 'l5-6', level: 5, title: "The Data Deep Dive", category: "Data Science", tool: "Gemini (Thinking Mode)", prompt: "Write Python code to calculate the correlation between 'Homework Minutes' and 'Test Scores' in this CSV.", steps: ["Upload CSV.", "Run code.", "See correlation."], tip: "You don't need to know Python. Gemini will write and execute it to give you the answer." },
+                { id: 'l5-7', level: 5, title: "The Agentic Email Triage", category: "Admin", tool: "Gemini Agent", prompt: "Summarise my last 5 emails from [SENDER] regarding [PROJECT] and draft a single summary response.", steps: ["Open Agent.", "Specify criteria.", "Review."], tip: "This is a powerful time-saver for managing long email threads." },
+                { id: 'l5-8', level: 5, title: "The Video Analysis Coach", category: "Multimodal", tool: "Gemini (Thinking Mode) + Video", prompt: "Upload a video of a science experiment. Ask Gemini to identify safety hazards.", steps: ["Upload video.", "Get analysis.", "Review."], tip: "Use this to create a 'Spot the Hazard' activity for students." },
+                { id: 'l5-9', level: 5, title: "The Full Scheme Visualiser", category: "Visuals", tool: "Gemini - Nano Banana Pro", prompt: "Take this text scheme of work and generate a mind map visualisation.", steps: ["Paste scheme.", "Generate image.", "Display."], tip: "Helps visual learners see the connections between topics." },
+                { id: 'l5-10', level: 5, title: "The Custom Extension", category: "Coding", tool: "Gemini (Thinking Mode)", prompt: "Write an Apps Script for Google Sheets that automatically emails parents when a grade falls below C.", steps: ["Describe logic.", "Get script.", "Install."], tip: "You can paste the script into Extensions > Apps Script in Sheets." }
+            ];
+
+            const getFilteredChallenges = () => {
+                if (typeof currentSelection === 'number') {
+                    return GENERAL_CHALLENGES.filter(c => c.level === currentSelection);
+                } else if (typeof currentSelection === 'string') {
+                    return SUBJECT_CHALLENGES[currentSelection] || [];
+                }
+                return [];
+            };
+
+            const handleSelection = (selection) => {
+                setCurrentSelection(selection);
+                setView('list');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const handleChallengeSelect = (challenge) => {
+                setSelectedChallenge(challenge);
+                setView('detail');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const goHome = () => {
+                setCurrentSelection(null);
+                setView('dashboard');
+                setSelectedChallenge(null);
+            };
+
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header */}
+                    <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-40 shadow-sm">
+                        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3 cursor-pointer" onClick={goHome}>
+                                {/* LOGO RESTORATION */}
+                                {!logoError ? (
+                                  <img 
+                                    src={LOGO_URL} 
+                                    alt="T&L Logo" 
+                                    className="h-10 md:h-12 w-auto object-contain"
+                                    onError={() => setLogoError(true)}
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 bg-[#c94084] rounded-lg flex items-center justify-center text-white transform -rotate-3 shadow-sm">
+                                    <Icons.Sparkles size={24} />
+                                  </div>
+                                )}
+                                <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight font-hand">
+                                    Gemini<span className="text-[#c94084]">Challenges</span>
+                                </h1>
+                            </div>
+                            
+                            <div className="hidden md:flex gap-2">
+                                <button onClick={() => setShowGuide(true)} className="px-4 py-2 bg-[#f0f9ff] text-[#0369a1] hover:bg-[#e0f2fe] font-bold rounded-lg transition-colors flex items-center gap-2 border border-[#bae6fd]">
+                                    <Icons.Info size={16} /> Gemini Guide
+                                </button>
+                                <button onClick={() => setShowGenerator(true)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg transition-colors flex items-center gap-2">
+                                    <Icons.RefreshCw size={16} /> Remix
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto px-6 pt-10">
+                        {/* Mobile Guide Button */}
+                        <div className="md:hidden mb-6">
+                             <button onClick={() => setShowGuide(true)} className="w-full px-4 py-3 bg-[#f0f9ff] text-[#0369a1] font-bold rounded-xl flex items-center justify-center gap-2 border border-[#bae6fd]">
+                                <Icons.Info size={20} /> Gemini Guide & Features
+                            </button>
+                        </div>
+
+                        {/* Dashboard View */}
+                        {view === 'dashboard' && (
+                            <div className="fade-in">
+                                <div className="mb-12 text-center max-w-3xl mx-auto">
+                                    
+                                    {/* --- ADDED LOGO CODE START --- */}
+                                    {!logoError && (
+                                        <div className="flex justify-center mb-8">
+                                            <img 
+                                                src={LOGO_URL} 
+                                                alt="T&L Logo" 
+                                                className="h-32 w-auto object-contain drop-shadow-sm"
+                                            />
+                                        </div>
+                                    )}
+                                    {/* --- ADDED LOGO CODE END --- */}
+
+                                    <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 leading-tight font-hand">
+                                        Unlock your teaching superpowers.
+                                    </h2>
+                                    <p className="text-xl text-gray-500 mb-8 leading-relaxed">
+                                        Select a Level for general skills, or browse by Subject for specialised Gemini challenges.
+                                    </p>
+                                    
+                                    {/* Dashboard Tab Switcher */}
+                                    <div className="flex justify-center mb-8 bg-gray-100 p-1 rounded-xl inline-flex mx-auto">
+                                        <button 
+                                            onClick={() => setDashboardTab('levels')}
+                                            className={`px-6 py-2 rounded-lg font-bold transition-all ${dashboardTab === 'levels' ? 'bg-white text-[#c94084] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            <div className="flex items-center gap-2"><Icons.Layers size={18} /> Levels</div>
+                                        </button>
+                                        <button 
+                                            onClick={() => setDashboardTab('subjects')}
+                                            className={`px-6 py-2 rounded-lg font-bold transition-all ${dashboardTab === 'subjects' ? 'bg-white text-[#c94084] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            <div className="flex items-center gap-2"><Icons.Palette size={18} /> Subjects</div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {dashboardTab === 'levels' ? (
+                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {Object.entries(LEVELS).map(([lvl, data]) => (
+                                                <LevelCard key={lvl} level={lvl} title={data.title} description={data.description} icon={data.icon} onClick={() => handleSelection(Number(lvl))} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                            {Object.keys(SUBJECT_CHALLENGES).sort().map((subj) => (
+                                                <button 
+                                                    key={subj}
+                                                    onClick={() => handleSelection(subj)}
+                                                    className="p-6 bg-white border-2 border-gray-200 rounded-xl hover:border-[#c94084] hover:shadow-[0px_4px_0px_0px_#c94084] hover:-translate-y-1 transition-all text-left group"
+                                                >
+                                                    <span className="block font-bold text-lg text-gray-700 group-hover:text-[#c94084] mb-2">{subj}</span>
+                                                    <span className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-1 rounded-full">10 Challenges</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* List View */}
+                        {view === 'list' && (
+                            <div className="fade-in">
+                                <div className="flex items-center gap-4 mb-8">
+                                    <button onClick={goHome} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                        <Icons.ArrowLeft />
+                                    </button>
+                                    <div>
+                                        <h2 className="text-3xl font-bold text-gray-800 font-hand">
+                                            {typeof currentSelection === 'number' ? LEVELS[currentSelection]?.title : currentSelection}
+                                        </h2>
+                                        <p className="text-gray-500">
+                                            {typeof currentSelection === 'number' ? LEVELS[currentSelection]?.description : 'Advanced challenges for Subject Experts.'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {getFilteredChallenges().map((challenge) => (
+                                        <div 
+                                            key={challenge.id}
+                                            onClick={() => handleChallengeSelect(challenge)}
+                                            className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-[#c94084] cursor-pointer transition-all hover:shadow-[4px_4px_0px_0px_#c94084] group flex flex-col h-full"
+                                        >
+                                            <div className="mb-4 flex justify-between items-start">
+                                                <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded-md uppercase tracking-wider">
+                                                    {challenge.category}
+                                                </span>
+                                                <Icons.ArrowRight className="text-gray-300 group-hover:text-[#c94084] transition-colors" size={20} />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-[#c94084] transition-colors font-hand">
+                                                {challenge.title}
+                                            </h3>
+                                            <p className="text-gray-500 text-sm line-clamp-3 mb-4 flex-grow">
+                                                {challenge.prompt.substring(0, 100)}...
+                                            </p>
+                                            <div className="mt-auto pt-4 border-t border-gray-100 flex items-center text-[#c94084] font-bold text-sm">
+                                                View Challenge
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Detail View */}
+                        {view === 'detail' && selectedChallenge && (
+                            <ChallengeDetail 
+                                challenge={selectedChallenge} 
+                                onBack={() => setView('list')} 
+                            />
+                        )}
+                    </main>
+
+                    {showGenerator && <IdeaGenerator onClose={() => setShowGenerator(false)} />}
+                    {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
